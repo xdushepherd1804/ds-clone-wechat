@@ -348,23 +348,7 @@ PROMPT
     return 0
   fi
 
-  # 自动模式: 通过 claude CLI 真正执行
-  # 优先使用 ccd (DeepSeek)，其次 claude (Anthropic)
-  local engine_name
-  local ccd_env_script="$HOME/.claude/ccd.sh"
-
-  if [[ -f "$ccd_env_script" ]]; then
-    # 加载 DeepSeek 环境变量
-    source "$ccd_env_script"
-    engine_name="ccd (DeepSeek)"
-  elif command -v claude &> /dev/null; then
-    engine_name="claude (Anthropic)"
-  else
-    echo "  ✗ 未找到 ccd 或 claude CLI，无法自动执行"
-    release_lock "$LOCK_DIR/${task_id}.lock"
-    rm -f "$prompt_file"
-    return 1
-  fi
+  source ~/.claude/ccd.sh
 
   # 更新状态为 in_progress
   if ! update_status "$task_file" "in_progress"; then
@@ -378,7 +362,7 @@ PROMPT
   local err_file="$PROJECT_DIR/logs/${task_id}.err.log"
   mkdir -p "$(dirname "$log_file")"
 
-  echo "  → 自动执行中，引擎: $engine_name"
+  echo "  → 自动执行中..."
   echo "  → 开始时间: $(date '+%Y-%m-%d %H:%M:%S')"
   echo "  → 日志文件: $log_file"
   echo ""
