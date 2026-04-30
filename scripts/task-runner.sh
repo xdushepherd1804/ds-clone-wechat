@@ -62,7 +62,7 @@ _ACTIVE_LOCKS=()
 # 退出/信号时清理残留锁
 cleanup_on_exit() {
   local exit_code=$?
-  for lock in "${_ACTIVE_LOCKS[@]}"; do
+  for lock in ${_ACTIVE_LOCKS[@]+"${_ACTIVE_LOCKS[@]}"}; do
     [[ -f "$lock" ]] && rm -f "$lock"
   done
   rm -rf "$PROJECT_DIR/.running" 2>/dev/null || true
@@ -83,7 +83,7 @@ release_lock() {
   local lock_file="$1"
   rm -f "$lock_file"
   local idx
-  for idx in "${!_ACTIVE_LOCKS[@]}"; do
+  for idx in ${!_ACTIVE_LOCKS[@]+"${!_ACTIVE_LOCKS[@]}"}; do
     if [[ "${_ACTIVE_LOCKS[$idx]}" == "$lock_file" ]]; then
       unset '_ACTIVE_LOCKS[$idx]'
       break
