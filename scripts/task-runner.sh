@@ -355,19 +355,35 @@ execute_task() {
   cat > "$prompt_file" <<PROMPT
 ## 任务: $task_id — $name
 
-请阅读任务文件 \`$task_file\` 了解完整需求，然后实现该任务。
+请阅读下面的任务文件，完成该任务的所有交付物。你必须进行自我验证。
 
-### 工作流程
-1. 仔细阅读任务文件中描述的交付物和测试标准
-2. 实现代码，确保满足所有交付物
-3. 运行测试标准中的验证步骤
+### 执行流程 (严格遵守)
+
+**第1步: 实现**
+- 完成「交付物」中列出的所有条目
+- 遵循项目中已有的代码模式和约定
+
+**第2步: 自测 (必须执行)**
+- 运行「测试标准」中的每一条验证命令
+- 如果某条测试失败，修复代码后重新运行，最多重试3次
+- 如果3次后仍失败，在最后输出中明确报告失败原因
+
+**第3步: 确认**
+- 确认所有交付物都已创建
+- 确认所有测试标准都已通过
+- 在输出的最后用以下格式报告结果:
+
+\`\`\`
+=== 验证报告 ===
+通过: X/N
+失败: Y/N
+(列出每条测试的结果)
+\`\`\`
 
 ### 重要提醒
-- 只实现本任务范围内的功能
-- 遵循项目中已有的代码模式和约定
-- 确保不与已有代码冲突
-- 完成后请验证测试标准全部通过
 - 不要修改 .md 任务文件的 status 字段，由编排器统一管理
+- 不要跳过验证步骤，每条测试标准都必须实际执行
+- 如果测试标准要求启动服务或安装依赖，必须执行这些步骤
 
 ### 任务文件
 \`\`\`
@@ -408,53 +424,117 @@ PROMPT
 
   cd "$PROJECT_DIR"
   local exit_code=0
+  local retry=0
+  local max_retries=2
 
-  # stdout 和 stderr 分开记录，stderr 单独保存便于排查
-  claude --print --dangerously-skip-permissions < "$prompt_file" \
-    > >(tee "$log_file") \
-    2> >(tee "$err_file" >&2)
-  exit_code=$?
+  # 清空日志，后续全部追加
+  : > "$log_file"
+  : > "$err_file"
 
-  # 如果 err 日志为空，删除它
-  [[ -f "$err_file" ]] && [[ ! -s "$err_file" ]] && rm -f "$err_file"
+  while true; do
+    # 执行 claude
+    {
+      if [[ $retry -eq 0 ]]; then
+        echo "=== 第1次尝试 ==="
+      else
+        echo ""
+        echo "=== 第$((retry + 1))次尝试 (修复模式) ==="
+      fi
+      echo "start: $(date '+%Y-%m-%d %H:%M:%S')"
+    } >> "$log_file"
 
-  # 写入结束标记
-  {
-    echo ""
-    echo "---"
-    echo "exit_code: $exit_code"
-    echo "end_time: $(date '+%Y-%m-%d %H:%M:%S')"
-  } >> "$log_file"
+    claude --print --dangerously-skip-permissions < "$prompt_file" \
+      > >(tee -a "$log_file") \
+      2> >(tee -a "$err_file" >&2)
+    exit_code=$?
 
-  # 扫描日志中的异常信号
-  local anomalies
-  anomalies=$(scan_log_for_anomalies "$log_file")
+    # 如果 err 日志为空，删除它
+    [[ -f "$err_file" ]] && [[ ! -s "$err_file" ]] && rm -f "$err_file"
 
-  if [[ $exit_code -ne 0 ]]; then
-    echo ""
-    echo "  ✗ 任务 $task_id 执行失败 (exit=$exit_code)"
-    echo "$anomalies"
-    update_status "$task_file" "failed"
-  elif [[ -n "$anomalies" ]]; then
-    echo ""
-    echo "  ⚠ 任务 $task_id 进程退出 0，但日志检测到异常:"
-    echo "$anomalies"
-    echo "  → 标记为 failed，请检查日志后重试"
-    update_status "$task_file" "failed"
-    exit_code=1
-  else
-    # 执行自动验证
+    # 写入结束标记
+    {
+      echo ""
+      echo "---"
+      echo "attempt: $((retry + 1))"
+      echo "exit_code: $exit_code"
+      echo "end_time: $(date '+%Y-%m-%d %H:%M:%S')"
+    } >> "$log_file"
+
+    # 扫描异常
+    local anomalies
+    anomalies=$(scan_log_for_anomalies "$log_file")
+
+    # 硬错误直接退出
+    if [[ $exit_code -ne 0 ]]; then
+      echo ""
+      echo "  ✗ 任务 $task_id 执行失败 (exit=$exit_code)"
+      echo "$anomalies"
+      update_status "$task_file" "failed"
+      break
+    fi
+
+    if [[ -n "$anomalies" ]]; then
+      echo ""
+      echo "  ⚠ 任务 $task_id 进程退出 0，但日志检测到异常:"
+      echo "$anomalies"
+      echo "  → 标记为 failed，请检查日志后重试"
+      update_status "$task_file" "failed"
+      exit_code=1
+      break
+    fi
+
+    # 自动验证
     if verify_task "$task_file" "$log_file"; then
       echo ""
       echo "  ✓ 任务 $task_id 执行成功 (验证通过)"
       update_status "$task_file" "completed"
-    else
+      break
+    fi
+
+    # 验证失败，尝试重试
+    retry=$((retry + 1))
+    if [[ $retry -ge $max_retries ]]; then
       echo ""
-      echo "  ✗ 任务 $task_id 验证失败"
+      echo "  ✗ 任务 $task_id 验证失败 (已重试 ${max_retries} 次)"
       update_status "$task_file" "failed"
       exit_code=1
+      break
     fi
-  fi
+
+    echo "  ↻ 验证未通过，生成修复 prompt 重试 (${retry}/${max_retries})..."
+
+    # 生成修复 prompt
+    rm -f "$prompt_file"
+    prompt_file=$(mktemp)
+    cat > "$prompt_file" <<RETRY_PROMPT
+## 修复任务: $task_id — $name
+
+上次实现未通过验证。请检查以下测试标准并修复代码:
+
+\`\`\`
+$(sed -n '/^## 测试标准/,/^## /p' "$task_file")
+\`\`\`
+
+### 要求
+1. 定位验证失败的原因
+2. 修复代码或补充缺失的交付物
+3. 重新运行所有测试命令，确保全部通过
+4. 用以下格式报告修复结果:
+
+\`\`\`
+=== 修复报告 ===
+问题: <失败的测试>
+修复: <做了什么>
+验证: <通过/失败>
+\`\`\`
+
+### 原始任务
+\`\`\`
+$(cat "$task_file")
+\`\`\`
+RETRY_PROMPT
+    echo "  → 重试 prompt: $prompt_file"
+  done
 
   echo "  → 结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
   rm -f "$prompt_file"
