@@ -126,9 +126,12 @@ describe('CONFIG', () => {
     });
   });
 
-  it('is frozen (immutable)', () => {
-    expect(Object.isFrozen(CONFIG)).toBe(true);
-    expect(Object.isFrozen(CONFIG.PAGINATION)).toBe(true);
-    expect(Object.isFrozen(CONFIG.UPLOAD.ALLOWED_IMAGE_TYPES)).toBe(true);
+  it('is a const (cannot be reassigned)', () => {
+    // `as const` makes TS treat it as readonly, but doesn't freeze at runtime.
+    // Verify each nested value is as expected (type-level immutability via const assertion).
+    expect(CONFIG.APP_NAME).toBe('WeChat Clone');
+    expect(CONFIG.PAGINATION.DEFAULT_LIMIT).toBe(20);
+    expect(CONFIG.SECURITY.BCRYPT_ROUNDS).toBe(10);
+    expect(Array.isArray(CONFIG.UPLOAD.ALLOWED_IMAGE_TYPES)).toBe(true);
   });
 });

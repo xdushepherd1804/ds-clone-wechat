@@ -115,6 +115,61 @@ scan_log_for_anomalies() {
   printf '%b\n' "$anomalies"
 }
 
+# 验证任务交付物 (提取测试标准中的命令并执行)
+verify_task() {
+  local task_file="$1"
+  local log_file="$2"
+  local verify_passed=0
+  local verify_failed=0
+
+  # 提取测试标准部分
+  local criteria
+  criteria=$(sed -n '/^## 测试标准/,/^## /p' "$task_file" | grep -v '^## ')
+
+  # 提取反引号中的可执行命令
+  local cmds=()
+  while IFS= read -r line; do
+    # 匹配 `command` 格式
+    while [[ "$line" =~ \`([^\`]+)\` ]]; do
+      cmds+=("${BASH_REMATCH[1]}")
+      line=${line#*\`}
+      line=${line#*\`}
+    done
+  done <<< "$criteria"
+
+  if [[ ${#cmds[@]} -eq 0 ]]; then
+    echo "  → 验证: 未找到可执行命令，跳过"
+    return 0
+  fi
+
+  echo "  → 开始验证 (${#cmds[@]} 条命令)..."
+
+  local cmd
+  for cmd in "${cmds[@]}"; do
+    # 过滤危险命令
+    if echo "$cmd" | grep -qE '^[[:space:]]*(rm[[:space:]]+-rf|sudo|chmod[[:space:]]+777|>.*/dev/)'; then
+      echo "    ⚠ 跳过危险命令: $cmd"
+      continue
+    fi
+
+    printf "    → %s ... " "$cmd"
+    if eval "$cmd" >> "$log_file" 2>&1; then
+      echo "✓"
+      verify_passed=$((verify_passed + 1))
+    else
+      echo "✗ (exit=$?)"
+      verify_failed=$((verify_failed + 1))
+    fi
+  done
+
+  echo "  → 验证结果: ${verify_passed} 通过, ${verify_failed} 失败"
+
+  if [[ $verify_failed -gt 0 ]]; then
+    return 1
+  fi
+  return 0
+}
+
 # ============================================================
 # 工具函数
 # ============================================================
@@ -375,11 +430,12 @@ PROMPT
   local anomalies
   anomalies=$(scan_log_for_anomalies "$log_file")
 
-  if [[ $exit_code -eq 0 ]] && [[ -z "$anomalies" ]]; then
+  if [[ $exit_code -ne 0 ]]; then
     echo ""
-    echo "  ✓ 任务 $task_id 执行成功"
-    update_status "$task_file" "completed"
-  elif [[ $exit_code -eq 0 ]] && [[ -n "$anomalies" ]]; then
+    echo "  ✗ 任务 $task_id 执行失败 (exit=$exit_code)"
+    echo "$anomalies"
+    update_status "$task_file" "failed"
+  elif [[ -n "$anomalies" ]]; then
     echo ""
     echo "  ⚠ 任务 $task_id 进程退出 0，但日志检测到异常:"
     echo "$anomalies"
@@ -387,10 +443,17 @@ PROMPT
     update_status "$task_file" "failed"
     exit_code=1
   else
-    echo ""
-    echo "  ✗ 任务 $task_id 执行失败 (exit=$exit_code)"
-    echo "$anomalies"
-    update_status "$task_file" "failed"
+    # 执行自动验证
+    if verify_task "$task_file" "$log_file"; then
+      echo ""
+      echo "  ✓ 任务 $task_id 执行成功 (验证通过)"
+      update_status "$task_file" "completed"
+    else
+      echo ""
+      echo "  ✗ 任务 $task_id 验证失败"
+      update_status "$task_file" "failed"
+      exit_code=1
+    fi
   fi
 
   echo "  → 结束时间: $(date '+%Y-%m-%d %H:%M:%S')"
