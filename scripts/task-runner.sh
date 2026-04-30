@@ -25,7 +25,6 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 TASKS_DIR="$PROJECT_DIR/tasks"
-STATE_FILE="$PROJECT_DIR/.task-runner-state.json"
 LOCK_DIR="$PROJECT_DIR/.task-locks"
 
 # ============================================================
@@ -33,7 +32,6 @@ LOCK_DIR="$PROJECT_DIR/.task-locks"
 # ============================================================
 AUTO_MODE=false
 DRY_RUN=false
-MAX_PARALLEL=2
 TARGET_TASK=""
 POLL_INTERVAL=10  # 扫描间隔 (秒)
 
@@ -44,7 +42,6 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --auto) AUTO_MODE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
-    --max-parallel) MAX_PARALLEL="$2"; shift 2 ;;
     --task) TARGET_TASK="$2"; shift 2 ;;
     --poll-interval) POLL_INTERVAL="$2"; shift 2 ;;
     --dashboard|--list-available|--mark-complete|--mark-failed|--deps|--help|-h)
@@ -96,14 +93,13 @@ scan_log_for_anomalies() {
   local log_file="$1"
   local anomalies=""
 
-  # 权限请求模式 —— agent 请求批准但未实际执行
-  if grep -qiE '(approve|permission|write permission|grant|allow.*write)' "$log_file" 2>/dev/null; then
-    anomalies="${anomalies}  - 检测到权限请求 (agent 可能因权限不足未完成工作)\n"
+  # 只匹配明确的失败信号，避免误报
+  if grep -qiE 'pending your approval|need write permission|approve.*write request' "$log_file" 2>/dev/null; then
+    anomalies="${anomalies}  - 检测到权限阻塞 (agent 等待批准，未能写文件)\n"
   fi
 
-  # 常见的失败/中断标记
-  if grep -qiE '(error|failed|refused|denied|timeout|unable to|ratelimit|rate.limit)' "$log_file" 2>/dev/null; then
-    anomalies="${anomalies}  - 检测到错误/拒绝/超时标记\n"
+  if grep -qiE 'Execution error|fatal:|command not found|cannot.*create' "$log_file" 2>/dev/null; then
+    anomalies="${anomalies}  - 检测到执行错误\n"
   fi
 
   # 日志为空或只有极少内容 (agent 立即退出)
@@ -113,7 +109,7 @@ scan_log_for_anomalies() {
     anomalies="${anomalies}  - 日志内容过少 (${line_count} 行)，agent 可能未正常执行\n"
   fi
 
-  echo -e "$anomalies"
+  printf '%b\n' "$anomalies"
 }
 
 # ============================================================
@@ -235,23 +231,8 @@ find_available_tasks() {
       continue
     fi
 
-    # 检查依赖 (deps_satisfied 失败意味着有 pending 依赖，标记为 blocked)
+    # 检查依赖
     if ! deps_satisfied "$task_file"; then
-      # 将长时间 pending 但依赖未满足的任务标记为 blocked
-      if [[ "$status" == "pending" ]]; then
-        local all_blocked=true
-        while IFS= read -r dep; do
-          [[ -z "$dep" ]] && continue
-          local dep_file="$TASKS_DIR/${dep}.md"
-          local ds
-          ds=$(get_status "$dep_file")
-          if [[ "$ds" == "completed" ]] || [[ "$ds" == "in_progress" ]]; then
-            all_blocked=false
-            break
-          fi
-        done < <(get_dependencies "$task_file")
-        # 不做自动标记以避免混乱，只跳过
-      fi
       continue
     fi
 
@@ -509,7 +490,7 @@ show_dashboard() {
     esac
 
     printf "  ║  %s %-4s %-5s %-5s %-12s %s\n" \
-      "$icon" "$id" "$phase" "$priority" "$agent" "${name:0:30}"
+      "$icon" "$id" "$phase" "$priority" "$agent" "$(echo "$name" | cut -c1-30)"
   done
 
   echo "  ╚═══════════════════════════════════════════════════════╝"
@@ -520,13 +501,35 @@ show_dashboard() {
 }
 
 # ============================================================
+# 僵尸任务恢复
+# ============================================================
+
+# 恢复卡在 in_progress 但没有锁文件的任务 (进程崩溃/被中断导致)
+recover_zombies() {
+  for task_file in $(list_tasks); do
+    local id status
+    id=$(basename "$task_file" .md)
+    status=$(get_status "$task_file")
+
+    if [[ "$status" != "in_progress" ]]; then
+      continue
+    fi
+
+    if [[ ! -f "$LOCK_DIR/${id}.lock" ]]; then
+      echo "  ↻ 恢复僵尸任务: $id → pending"
+      update_status "$task_file" "pending"
+    fi
+  done
+}
+
+# ============================================================
 # 主循环
 # ============================================================
 
 main_loop() {
   echo "════════════════════════════════════════════════════════════"
   echo "  仿微信系统 — Task Runner 启动"
-  echo "  自动模式: $AUTO_MODE | 并发数: $MAX_PARALLEL"
+  echo "  自动模式: $AUTO_MODE"
   echo "  轮询间隔: ${POLL_INTERVAL}s"
   echo "════════════════════════════════════════════════════════════"
 
@@ -534,6 +537,9 @@ main_loop() {
 
   while true; do
     iteration=$((iteration + 1))
+
+    # 恢复僵尸任务
+    recover_zombies
 
     # 显示仪表盘
     show_dashboard
@@ -642,7 +648,6 @@ show_help() {
 
   选项 (用于 run 模式):
     --auto              自动模式，不询问，按顺序执行任务
-    --max-parallel N    最大并发任务数 (默认: 2)
     --dry-run           只显示可执行任务，不实际执行
     --task T004         只执行指定任务
     --poll-interval N   扫描间隔秒数 (默认: 10)
@@ -670,7 +675,7 @@ show_help() {
     ./scripts/task-runner.sh --list-available
 
     # 自动运行所有任务
-    ./scripts/task-runner.sh --auto --max-parallel 3
+    ./scripts/task-runner.sh --auto
 
     # 只运行 T004
     ./scripts/task-runner.sh --task T004
@@ -717,7 +722,6 @@ case "${1:-}" in
       echo "  (无依赖)"
     else
       for dep in $deps; do
-        local ds
         ds=$(get_status "$TASKS_DIR/${dep}.md")
         echo "  $dep [$ds]"
       done
