@@ -1,0 +1,145 @@
+// WeChat Clone — PostgreSQL Schema
+// DB: postgresql://wechat:wechat_dev@localhost:5432/wechat
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ───────────────────────────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique @db.VarChar(50)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  nickname     String   @db.VarChar(100)
+  avatar       String?  @db.VarChar(500)
+  phone        String?  @unique @db.VarChar(20)
+  status       String   @default("offline") @db.VarChar(20)
+  lastSeenAt   DateTime? @map("last_seen_at") @db.Timestamptz()
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  contacts        Contact[]   @relation("UserContacts")
+  contactOf       Contact[]   @relation("ContactOf")
+  ownedGroups     Group[]     @relation("GroupOwner")
+  groupMemberships GroupMember[]
+  moments         Moment[]
+  momentLikes     MomentLike[]
+  momentComments  MomentComment[]
+
+  @@map("users")
+}
+
+// ─── Contacts ────────────────────────────────────────────────────────────────
+
+model Contact {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  contactId String   @map("contact_id") @db.Uuid
+  remark    String?  @db.VarChar(100)
+  tags      String[] @default([])
+  status    String   @default("active") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user    User   @relation("UserContacts", fields: [userId], references: [id], onDelete: Cascade)
+  contact User   @relation("ContactOf", fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, contactId])
+  @@index([userId])
+  @@index([contactId])
+  @@map("contacts")
+}
+
+// ─── Groups ──────────────────────────────────────────────────────────────────
+
+model Group {
+  id           String   @id @default(uuid()) @db.Uuid
+  name         String   @db.VarChar(100)
+  avatar       String?  @db.VarChar(500)
+  ownerId      String   @map("owner_id") @db.Uuid
+  announcement String?  @db.Text
+  memberCount  Int      @default(0) @map("member_count")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  owner  User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members GroupMember[]
+
+  @@index([ownerId])
+  @@map("groups")
+}
+
+// ─── Group Members ───────────────────────────────────────────────────────────
+
+model GroupMember {
+  id              String   @id @default(uuid()) @db.Uuid
+  groupId         String   @map("group_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  role            String   @default("member") @db.VarChar(20)
+  nicknameInGroup String?  @map("nickname_in_group") @db.VarChar(100)
+  joinedAt        DateTime @default(now()) @map("joined_at") @db.Timestamptz()
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([userId])
+  @@map("group_members")
+}
+
+// ─── Moments ─────────────────────────────────────────────────────────────────
+
+model Moment {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  content    String?  @db.Text
+  images     String[] @default([])
+  location   String?  @db.VarChar(200)
+  visibility String   @default("public") @db.VarChar(20)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user     User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes    MomentLike[]
+  comments MomentComment[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("moments")
+}
+
+// ─── Moment Likes ────────────────────────────────────────────────────────────
+
+model MomentLike {
+  id        String   @id @default(uuid()) @db.Uuid
+  momentId  String   @map("moment_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  moment Moment @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([momentId, userId])
+  @@map("moment_likes")
+}
+
+// ─── Moment Comments ─────────────────────────────────────────────────────────
+
+model MomentComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  momentId  String   @map("moment_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  replyToId String?  @map("reply_to_id") @db.Uuid
+  content   String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  moment  Moment          @relation(fields: [momentId], references: [id], onDelete: Cascade)
+  user    User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  replyTo MomentComment?  @relation("CommentReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies MomentComment[] @relation("CommentReplies")
+
+  @@index([momentId, createdAt])
+  @@map("moment_comments")
+}

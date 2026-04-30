@@ -32,6 +32,7 @@ LOCK_DIR="$PROJECT_DIR/.task-locks"
 # ============================================================
 AUTO_MODE=false
 DRY_RUN=false
+MAX_PARALLEL=2
 TARGET_TASK=""
 POLL_INTERVAL=10  # 扫描间隔 (秒)
 
@@ -42,6 +43,7 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --auto) AUTO_MODE=true; shift ;;
     --dry-run) DRY_RUN=true; shift ;;
+    --max-parallel) MAX_PARALLEL="$2"; shift 2 ;;
     --task) TARGET_TASK="$2"; shift 2 ;;
     --poll-interval) POLL_INTERVAL="$2"; shift 2 ;;
     --dashboard|--list-available|--mark-complete|--mark-failed|--deps|--help|-h)
@@ -63,6 +65,7 @@ cleanup_on_exit() {
   for lock in "${_ACTIVE_LOCKS[@]}"; do
     [[ -f "$lock" ]] && rm -f "$lock"
   done
+  rm -rf "$PROJECT_DIR/.running" 2>/dev/null || true
   exit $exit_code
 }
 
@@ -529,7 +532,7 @@ recover_zombies() {
 main_loop() {
   echo "════════════════════════════════════════════════════════════"
   echo "  仿微信系统 — Task Runner 启动"
-  echo "  自动模式: $AUTO_MODE"
+  echo "  自动模式: $AUTO_MODE | 并发数: $MAX_PARALLEL"
   echo "  轮询间隔: ${POLL_INTERVAL}s"
   echo "════════════════════════════════════════════════════════════"
 
@@ -621,13 +624,48 @@ main_loop() {
           ;;
       esac
     else
-      # 自动模式：取第一个可用任务
-      local first_task
-      first_task=$(echo "$available" | head -1 | awk '{print $1}')
-      if [[ -n "$first_task" ]]; then
-        execute_task "$first_task"
+      # 自动模式：并发执行任务
+      local _running_dir="$PROJECT_DIR/.running"
+      mkdir -p "$_running_dir"
+
+      # 清理已完成的后台任务
+      local done_pid done_id
+      for pid_file in "$_running_dir"/*.pid; do
+        [[ -f "$pid_file" ]] || continue
+        done_id=$(basename "$pid_file" .pid)
+        done_pid=$(cat "$pid_file")
+        if ! kill -0 "$done_pid" 2>/dev/null; then
+          wait "$done_pid" 2>/dev/null || true
+          echo "  ✓ 后台任务 $done_id 完成"
+          rm -f "$pid_file"
+        fi
+      done
+
+      # 计算可用槽位
+      local running_count slots launch_id
+      running_count=0
+      for pid_file in "$_running_dir"/*.pid; do
+        [[ -f "$pid_file" ]] && running_count=$((running_count + 1))
+      done
+      slots=$((MAX_PARALLEL - running_count))
+
+      if [[ $slots -gt 0 ]]; then
+        while IFS= read -r line; do
+          [[ -z "$line" ]] && continue
+          [[ $slots -le 0 ]] && break
+          launch_id=$(echo "$line" | awk '{print $1}')
+          [[ -z "$launch_id" ]] && continue
+
+          echo "  → 启动后台任务: $launch_id (可用槽位: $slots)"
+          execute_task "$launch_id" &
+          echo $! > "$_running_dir/${launch_id}.pid"
+          slots=$((slots - 1))
+        done <<< "$available"
       fi
-      sleep 2
+
+      printf "  → 运行中: %d/%d，%ds 后重新扫描...\n" \
+        $((MAX_PARALLEL - slots)) "$MAX_PARALLEL" "$POLL_INTERVAL"
+      sleep "$POLL_INTERVAL"
     fi
   done
 }
@@ -648,6 +686,7 @@ show_help() {
 
   选项 (用于 run 模式):
     --auto              自动模式，不询问，按顺序执行任务
+    --max-parallel N    最大并发任务数 (默认: 2)
     --dry-run           只显示可执行任务，不实际执行
     --task T004         只执行指定任务
     --poll-interval N   扫描间隔秒数 (默认: 10)
@@ -659,6 +698,7 @@ show_help() {
     --mark-complete ID  标记任务为 completed
     --mark-failed ID    标记任务为 failed
     --deps ID           查看任务的依赖树及状态
+    --tail ID           实时查看任务日志 (tail -f)
 
   状态:
     pending       → 等待执行 (依赖满足后自动调度)
@@ -675,7 +715,7 @@ show_help() {
     ./scripts/task-runner.sh --list-available
 
     # 自动运行所有任务
-    ./scripts/task-runner.sh --auto
+    ./scripts/task-runner.sh --auto --max-parallel 3
 
     # 只运行 T004
     ./scripts/task-runner.sh --task T004
@@ -726,6 +766,18 @@ case "${1:-}" in
         echo "  $dep [$ds]"
       done
     fi
+    ;;
+  --tail)
+    task_id="${2:-}"
+    log_file="$PROJECT_DIR/logs/${task_id}.log"
+    if [[ ! -f "$log_file" ]]; then
+      echo "Log not found: $log_file"
+      echo "Available logs:"
+      ls -la "$PROJECT_DIR/logs/"*.log 2>/dev/null || echo "  (none)"
+      exit 1
+    fi
+    echo "Tailing $log_file (Ctrl-C to stop)..."
+    tail -f "$log_file"
     ;;
   *)
     main_loop
