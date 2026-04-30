@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const mockPost = vi.fn();
+const { mockPost } = vi.hoisted(() => ({
+  mockPost: vi.fn(),
+}));
 
 vi.mock('./client', () => ({
   default: {
