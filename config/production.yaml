@@ -1,0 +1,24 @@
+# wechat-clone — production overrides
+
+app:
+  env: production
+  log_level: warn
+
+gateway:
+  host: 0.0.0.0
+
+database:
+  postgres:
+    host: ${PG_HOST}
+    port: 5432
+    database: wechat_production
+    user: ${PG_USER}
+  redis:
+    host: ${REDIS_HOST}
+    port: 6379
+  mongodb:
+    uri: ${MONGODB_URI}
+
+jwt:
+  access_expire: 5m
+  refresh_expire: 1d

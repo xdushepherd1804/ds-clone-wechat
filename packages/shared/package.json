@@ -19,7 +19,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "^6.1.0"
+    "@prisma/client": "^6.1.0",
+    "yaml": "^2.8.3"
   },
   "devDependencies": {
     "prisma": "^6.1.0",

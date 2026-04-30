@@ -1,0 +1,24 @@
+# wechat-clone — staging overrides
+
+app:
+  env: staging
+  log_level: info
+
+gateway:
+  host: 0.0.0.0
+
+database:
+  postgres:
+    host: ${PG_HOST}
+    port: 5432
+    database: wechat_staging
+    user: ${PG_USER}
+  redis:
+    host: ${REDIS_HOST}
+    port: 6379
+  mongodb:
+    uri: ${MONGODB_URI}
+
+jwt:
+  access_expire: 10m
+  refresh_expire: 3d

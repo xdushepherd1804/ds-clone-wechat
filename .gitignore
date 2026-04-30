@@ -28,5 +28,8 @@ logs/*.log
 # task locks (runtime)
 .task-locks/
 
+# test coverage
+coverage/
+
 # claude (keep settings, exclude committing state)
 .claude/committing
