@@ -1,0 +1,14 @@
+{
+  "files": [],
+  "references": [
+    { "path": "packages/shared" },
+    { "path": "packages/server-auth" },
+    { "path": "packages/server-gateway" },
+    { "path": "packages/server-message" },
+    { "path": "packages/server-contact" },
+    { "path": "packages/server-group" },
+    { "path": "packages/server-file" },
+    { "path": "packages/server-moments" },
+    { "path": "packages/web" }
+  ]
+}

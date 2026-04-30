@@ -1,0 +1,48 @@
+node_modules
+dist
+.git
+.gitignore
+*.md
+!docker/README.md
+.env
+.env.local
+.env.*.local
+*.log
+logs/
+.turbo
+coverage
+.nyc_output
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+packages/web/dist/
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# CI/CD
+.github/
+
+# Docker
+docker/README.md
+.dockerignore
+
+# PNPM store
+.pnpm-store/
+
+# Misc
+.husky/
+.running/
+.task-locks/
+vitest.config.ts
+lint-staged.config.js
