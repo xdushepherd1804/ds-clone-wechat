@@ -387,7 +387,7 @@ PROMPT
   local exit_code=0
 
   # stdout 和 stderr 分开记录，stderr 单独保存便于排查
-  ~/.claude/ccd.sh --print --dangerously-skip-permissions --output-format text < "$prompt_file" \
+  claude --print --dangerously-skip-permissions < "$prompt_file" \
     > >(tee "$log_file") \
     2> >(tee "$err_file" >&2)
   exit_code=$?
