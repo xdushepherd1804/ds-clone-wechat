@@ -1,3 +1,32 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+build/
+*.tsbuildinfo
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# env
+.env
+.env.local
+.env.*.local
+
+# logs
+logs/*.log
+
+# task locks (runtime)
+.task-locks/
+
+# claude (keep settings, exclude committing state)
 .claude/committing
-.claude/settings.local.json
-.claude/auto-commit.sh
