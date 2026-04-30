@@ -25,6 +25,9 @@ function assert(condition: boolean, label: string): void {
   }
 }
 
+// Set up required env var for all tests that use default.yaml (it references ${JWT_SECRET})
+process.env.JWT_SECRET = 'test-secret-for-verify';
+
 // ---------------------------------------------------------------------------
 // Test 1: Load development config (defaults to 'development' when NODE_ENV unset)
 // ---------------------------------------------------------------------------
@@ -74,7 +77,6 @@ try {
 // Test 5: Sanitize masks sensitive fields
 console.log('\n── Test 5: Sensitive info sanitization ──');
 
-process.env.JWT_SECRET = 'test-secret-value';
 const cfg = loadConfig(CONFIG_DIR, 'development');
 const safe = sanitizeConfig(structuredClone(cfg) as typeof cfg);
 
@@ -89,14 +91,14 @@ assert(safe.app.name === cfg.app.name, 'app.name is unchanged');
 assert(safe.gateway.port === cfg.gateway.port, 'gateway.port is unchanged');
 
 // Original config must NOT be mutated
-assert(cfg.jwt.secret === 'test-secret-value', 'original config is not mutated');
+assert(cfg.jwt.secret === 'test-secret-for-verify', 'original config is not mutated');
 assert(cfg.database.mongodb.uri !== '***', 'original mongodb.uri is unchanged');
 
 // Test 6: Verify sanitized config can be safely logged (no raw secrets)
 console.log('\n── Test 6: Log-safe output ──');
 
 const logOutput = JSON.stringify(safe);
-assert(!logOutput.includes('test-secret-value'), 'sanitized JSON does not contain JWT secret');
+assert(!logOutput.includes('test-secret-for-verify'), 'sanitized JSON does not contain JWT secret');
 assert(!logOutput.includes('wechat_dev@'), 'sanitized JSON does not contain MongoDB credentials');
 
 // Test 7: Service registry

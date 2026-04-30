@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { parse as parseYaml } from 'yaml';
 
-import type { AppConfig, ServiceRegistry, EnvName } from './types';
+import type { AppConfig, ServiceRegistry } from './types';
 
 // ---------------------------------------------------------------------------
 // Public API
@@ -242,11 +242,11 @@ function validate(config: AppConfig, env: string): void {
 
 function checkRequired(
   path: string,
-  obj: Record<string, unknown> | undefined,
+  obj: object | undefined | null,
   errors: string[],
   keys: string[],
 ): void {
-  if (!obj) {
+  if (!obj || typeof obj !== 'object') {
     errors.push(`${path}: section is missing`);
     return;
   }

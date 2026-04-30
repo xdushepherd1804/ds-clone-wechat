@@ -2,7 +2,7 @@
  * @wechat-clone/shared — configuration module
  */
 
-export { loadConfig, loadServiceRegistry, sanitizeConfig } from './loader';
+export { loadConfig, loadServiceRegistry, sanitizeConfig, ConfigError } from './loader';
 export type {
   AppConfig,
   AppSettings,
