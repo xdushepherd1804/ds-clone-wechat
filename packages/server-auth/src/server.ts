@@ -11,6 +11,7 @@ import {
   validateChangePassword,
   validateSearch,
 } from './validation';
+import swaggerSpec from './swagger.json' assert { type: 'json' };
 
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';
 const config = loadConfig(CONFIG_DIR);
@@ -119,12 +120,14 @@ function matchRoute(
   method: string,
   url: string,
 ): {
-  handler: 'register' | 'login' | 'logout' | 'refresh' | 'getMe' | 'updateMe' | 'getUser' | 'searchUsers' | 'updateAvatar' | 'changePassword' | 'health';
+  handler: 'register' | 'login' | 'logout' | 'refresh' | 'getMe' | 'updateMe' | 'getUser' | 'searchUsers' | 'updateAvatar' | 'changePassword' | 'health' | 'swaggerUi' | 'swaggerJson';
   params?: Record<string, string>;
 } | null {
   const path = new URL(url, 'http://localhost').pathname;
 
   if (method === 'GET' && (path === '/health' || path === '/api/auth/health')) return { handler: 'health' };
+  if (method === 'GET' && path === '/api/docs/swagger.json') return { handler: 'swaggerJson' };
+  if (method === 'GET' && path === '/api/docs') return { handler: 'swaggerUi' };
   if (method === 'POST' && (path === '/api/auth/register' || path === '/register')) return { handler: 'register' };
   if (method === 'POST' && (path === '/api/auth/login' || path === '/login')) return { handler: 'login' };
   if (method === 'POST' && (path === '/api/auth/logout' || path === '/logout')) return { handler: 'logout' };
