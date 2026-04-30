@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { createAuthService, AuthError } from './auth.service';
+import { createAuthMiddleware } from './middleware';
 import { InMemorySessionStore } from './session';
 import { signJwt } from './jwt';
 import type { AuthConfig, AuthDeps } from './auth.service';
@@ -399,5 +400,103 @@ describe('AuthService', () => {
         service.checkRateLimit('login', 'testuser', 60, 5),
       ).resolves.toBeUndefined();
     });
+  });
+
+  describe('concurrent login', () => {
+    it('allows multiple simultaneous logins from same user', async () => {
+      const { service } = createService();
+      await service.register({ username: 'concurrent', password: 'password123', nickname: 'Test' });
+
+      const [r1, r2] = await Promise.all([
+        service.login({ username: 'concurrent', password: 'password123' }),
+        service.login({ username: 'concurrent', password: 'password123' }),
+      ]);
+
+      // Both should succeed
+      expect(r1.token).toBeTruthy();
+      expect(r2.token).toBeTruthy();
+
+      // Each login should produce unique tokens
+      expect(r1.token).not.toBe(r2.token);
+      expect(r1.refreshToken).not.toBe(r2.refreshToken);
+
+      // Both resolve to the correct user
+      expect(r1.user.username).toBe('concurrent');
+      expect(r2.user.username).toBe('concurrent');
+      expect(r1.user.id).toBe(r2.user.id);
+
+      // Each token has a different JTI
+      const p1 = JSON.parse(Buffer.from(r1.token.split('.')[1], 'base64url').toString());
+      const p2 = JSON.parse(Buffer.from(r2.token.split('.')[1], 'base64url').toString());
+      expect(p1.jti).not.toBe(p2.jti);
+    });
+  });
+
+  describe('logout invalidates correct session only', () => {
+    it('logging out one session does not affect other sessions', async () => {
+      const { service, store } = createService();
+      await service.register({ username: 'multi', password: 'password123', nickname: 'Test' });
+
+      const r1 = await service.login({ username: 'multi', password: 'password123' });
+      const r2 = await service.login({ username: 'multi', password: 'password123' });
+
+      const p1 = JSON.parse(Buffer.from(r1.token.split('.')[1], 'base64url').toString());
+      const p2 = JSON.parse(Buffer.from(r2.token.split('.')[1], 'base64url').toString());
+
+      // Logout session 1
+      await service.logout(r1.token);
+
+      // Session 1 should be gone
+      expect(await store.getByJti(p1.jti)).toBeNull();
+      // Session 2 should still exist
+      expect(await store.getByJti(p2.jti)).not.toBeNull();
+    });
+  });
+});
+
+describe('Auth Middleware / 401', () => {
+  const authenticate = createAuthMiddleware(SECRET);
+
+  it('returns 401 equivalent when no token provided', () => {
+    try {
+      authenticate('');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError);
+      expect((err as AuthError).code).toBe(ErrorCode.UNAUTHORIZED);
+    }
+  });
+
+  it('returns 401 equivalent when token is missing even with Bearer prefix', () => {
+    try {
+      authenticate('Bearer ');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError);
+    }
+  });
+
+  it('returns 401 equivalent when token is malformed', () => {
+    try {
+      authenticate('Bearer not.a.valid.jwt.token');
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError);
+      expect([ErrorCode.TOKEN_INVALID, ErrorCode.UNAUTHORIZED]).toContain((err as AuthError).code);
+    }
+  });
+
+  it('rejects expired token', () => {
+    const expired = signJwt(
+      { sub: 'u1', username: 'alice', type: 'access', exp: Math.floor(Date.now() / 1000) - 60 },
+      SECRET,
+    );
+    try {
+      authenticate(expired);
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect(err).toBeInstanceOf(AuthError);
+      expect((err as AuthError).code).toBe(ErrorCode.TOKEN_EXPIRED);
+    }
   });
 });

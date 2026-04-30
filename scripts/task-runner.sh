@@ -35,6 +35,7 @@ DRY_RUN=false
 MAX_PARALLEL=2
 TARGET_TASK=""
 POLL_INTERVAL=10  # 扫描间隔 (秒)
+MAX_AUTO_RETRIES=3  # 失败任务自动重试上限
 
 # ============================================================
 # 参数解析
@@ -46,7 +47,8 @@ while [[ $# -gt 0 ]]; do
     --max-parallel) MAX_PARALLEL="$2"; shift 2 ;;
     --task) TARGET_TASK="$2"; shift 2 ;;
     --poll-interval) POLL_INTERVAL="$2"; shift 2 ;;
-    --dashboard|--list-available|--mark-complete|--mark-failed|--deps|--help|-h)
+    --max-auto-retries) MAX_AUTO_RETRIES="$2"; shift 2 ;;
+    --dashboard|--list-available|--mark-complete|--mark-failed|--deps|--reset-retries|--help|-h)
       # 这些由下方的命令分发处理，这里不消费
       break
       ;;
@@ -89,6 +91,27 @@ release_lock() {
       break
     fi
   done
+}
+
+# ============================================================
+# 重试计数器
+# ============================================================
+
+get_retry_count() {
+  local task_id="$1"
+  cat "$LOCK_DIR/${task_id}.retries" 2>/dev/null || echo 0
+}
+
+increment_retry_count() {
+  local task_id="$1"
+  local count
+  count=$(get_retry_count "$task_id")
+  echo $((count + 1)) > "$LOCK_DIR/${task_id}.retries"
+}
+
+reset_retry_count() {
+  local task_id="$1"
+  rm -f "$LOCK_DIR/${task_id}.retries"
 }
 
 # 扫描日志中的异常信号
@@ -488,6 +511,7 @@ PROMPT
       echo ""
       echo "  ✓ 任务 $task_id 执行成功 (验证通过)"
       update_status "$task_file" "completed"
+      reset_retry_count "$task_id"
       break
     fi
 
@@ -553,6 +577,7 @@ mark_complete() {
   fi
 
   update_status "$task_file" "completed"
+  reset_retry_count "$task_id"
   release_lock "$LOCK_DIR/${task_id}.lock"
 }
 
@@ -650,20 +675,52 @@ show_dashboard() {
 # 僵尸任务恢复
 # ============================================================
 
-# 恢复卡在 in_progress 但没有锁文件的任务 (进程崩溃/被中断导致)
+# 恢复僵尸/失败任务：
+#   1. in_progress + 无锁文件  → 进程崩溃，重置为 pending
+#   2. pending + 陈旧锁文件    → 锁残留但进程已死，清除锁
+#   3. failed                  → 在重试上限内重置为 pending
 recover_zombies() {
   for task_file in $(list_tasks); do
     local id status
     id=$(basename "$task_file" .md)
     status=$(get_status "$task_file")
 
-    if [[ "$status" != "in_progress" ]]; then
+    # 情况1: in_progress 但无锁 → 进程异常退出
+    if [[ "$status" == "in_progress" ]] && [[ ! -f "$LOCK_DIR/${id}.lock" ]]; then
+      echo "  ↻ 恢复僵尸任务 (in_progress/无锁): $id → pending"
+      update_status "$task_file" "pending"
       continue
     fi
 
-    if [[ ! -f "$LOCK_DIR/${id}.lock" ]]; then
-      echo "  ↻ 恢复僵尸任务: $id → pending"
-      update_status "$task_file" "pending"
+    # 情况2: pending 但有陈旧锁 → 检查对应 PID 是否存活
+    if [[ "$status" == "pending" ]] && [[ -f "$LOCK_DIR/${id}.lock" ]]; then
+      local pid_file="$PROJECT_DIR/.running/${id}.pid"
+      local pid_alive=false
+      if [[ -f "$pid_file" ]]; then
+        local pid
+        pid=$(cat "$pid_file" 2>/dev/null || true)
+        [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null && pid_alive=true
+      fi
+      if [[ "$pid_alive" == "false" ]]; then
+        echo "  ↻ 清除僵尸锁 (pending/陈旧锁): $id"
+        rm -f "$LOCK_DIR/${id}.lock"
+        [[ -f "$pid_file" ]] && rm -f "$pid_file"
+      fi
+      continue
+    fi
+
+    # 情况3: failed → 在重试上限内自动重试
+    if [[ "$status" == "failed" ]]; then
+      local retries
+      retries=$(get_retry_count "$id")
+      if [[ $retries -lt $MAX_AUTO_RETRIES ]]; then
+        increment_retry_count "$id"
+        echo "  ↻ 重试失败任务: $id (第 $((retries + 1))/${MAX_AUTO_RETRIES} 次) → pending"
+        update_status "$task_file" "pending"
+      else
+        echo "  ✗ 任务 $id 已达最大重试次数 ($MAX_AUTO_RETRIES)，跳过"
+      fi
+      continue
     fi
   done
 }
@@ -833,6 +890,7 @@ show_help() {
     --dry-run           只显示可执行任务，不实际执行
     --task T004         只执行指定任务
     --poll-interval N   扫描间隔秒数 (默认: 10)
+    --max-auto-retries N  失败任务自动重试上限 (默认: 3)
 
   命令:
     --help, -h          显示此帮助信息
@@ -842,6 +900,7 @@ show_help() {
     --mark-failed ID    标记任务为 failed
     --deps ID           查看任务的依赖树及状态
     --tail ID           实时查看任务日志 (tail -f)
+    --reset-retries ID  清除任务重试计数 (ID 可用 "all")
 
   状态:
     pending       → 等待执行 (依赖满足后自动调度)
@@ -908,6 +967,20 @@ case "${1:-}" in
         ds=$(get_status "$TASKS_DIR/${dep}.md")
         echo "  $dep [$ds]"
       done
+    fi
+    ;;
+  --reset-retries)
+    task_id="${2:-}"
+    if [[ -z "$task_id" ]]; then
+      echo "Usage: $0 --reset-retries <TASK_ID|all>"
+      exit 1
+    fi
+    if [[ "$task_id" == "all" ]]; then
+      rm -f "$LOCK_DIR"/*.retries
+      echo "✓ 已清除所有任务的重试计数"
+    else
+      reset_retry_count "$task_id"
+      echo "✓ 已清除 $task_id 的重试计数"
     fi
     ;;
   --tail)
