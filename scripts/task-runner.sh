@@ -354,8 +354,8 @@ PROMPT
   local ccd_env_script="$HOME/.claude/ccd.sh"
 
   if [[ -f "$ccd_env_script" ]]; then
-    # 提取 ccd.sh 中的 export 语句，加载 DeepSeek 环境变量
-    eval "$(grep '^export ' "$ccd_env_script")"
+    # 加载 DeepSeek 环境变量
+    source "$ccd_env_script"
     engine_name="ccd (DeepSeek)"
   elif command -v claude &> /dev/null; then
     engine_name="claude (Anthropic)"
