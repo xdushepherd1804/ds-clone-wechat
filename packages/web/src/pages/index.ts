@@ -1,8 +1,8 @@
-export { default as LoginPage } from './LoginPage';
-export { default as RegisterPage } from './RegisterPage';
-export { default as ChatPage } from './ChatPage';
-export { default as ChatDetailPage } from './ChatDetailPage';
-export { default as ContactsPage } from './ContactsPage';
-export { default as ContactDetailPage } from './ContactDetailPage';
-export { default as MomentsPage } from './MomentsPage';
-export { default as ProfilePage } from './ProfilePage';
+export { LoginPage } from './LoginPage';
+export { RegisterPage } from './RegisterPage';
+export { ChatPage } from './ChatPage';
+export { ChatDetailPage } from './ChatDetailPage';
+export { ContactsPage } from './ContactsPage';
+export { ContactDetailPage } from './ContactDetailPage';
+export { MomentsPage } from './MomentsPage';
+export { ProfilePage } from './ProfilePage';

@@ -1,31 +1,22 @@
-import { Card, Typography, Button, Avatar, Space } from 'antd';
+import { Typography, Card, Avatar, Divider } from 'antd';
 import { UserOutlined } from '@ant-design/icons';
-import { useUserStore } from '@/store';
-import { useNavigate } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
-export default function ProfilePage() {
-  const user = useUserStore((s) => s.user);
-  const logout = useUserStore((s) => s.logout);
-  const navigate = useNavigate();
-
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
-
+export function ProfilePage() {
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ maxWidth: 800, margin: '0 auto', padding: 16 }}>
+      <Title level={4}>Profile</Title>
       <Card>
-        <Space direction="vertical" align="center" style={{ width: '100%' }}>
-          <Avatar size={80} icon={<UserOutlined />} src={user?.avatar} />
-          <Title level={4}>{user?.nickname || '未登录'}</Title>
-          <Text type="secondary">@{user?.username}</Text>
-          <Button type="primary" danger onClick={handleLogout}>
-            退出登录
-          </Button>
-        </Space>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <Avatar size={64} icon={<UserOutlined />} style={{ backgroundColor: '#07c160' }} />
+          <div>
+            <Title level={5} style={{ margin: 0 }}>User</Title>
+            <Text type="secondary">WeChat ID: user_12345</Text>
+          </div>
+        </div>
+        <Divider />
+        <p>Profile details and settings will appear here.</p>
       </Card>
     </div>
   );

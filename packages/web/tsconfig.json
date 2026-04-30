@@ -3,7 +3,10 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
   },
   "extends": "../../tsconfig.base.json",
   "include": ["src"]

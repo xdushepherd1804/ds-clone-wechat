@@ -40,6 +40,8 @@ COPY packages/server-group/src packages/server-group/src/
 COPY packages/server-file/src packages/server-file/src/
 COPY packages/server-moments/src packages/server-moments/src/
 COPY packages/server-gateway/src packages/server-gateway/src/
+COPY packages/web/src packages/web/src/
+COPY packages/web/index.html packages/web/vite.config.ts packages/web/
 COPY config/ config/
 
 # Generate Prisma client

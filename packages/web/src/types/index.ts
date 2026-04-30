@@ -67,7 +67,7 @@ export type {
   ApiEndpoint,
 } from '@wechat-clone/shared';
 
-export { API_PREFIX } from '@wechat-clone/shared';
+export { ErrorCode, ErrorMessage } from '@wechat-clone/shared';
 
 export type {
   WSRequest,
@@ -82,5 +82,4 @@ export type {
   WSResponseCmd,
 } from '@wechat-clone/shared';
 
-export { ErrorCode, ErrorMessage } from '@wechat-clone/shared';
 export type { ErrorCodeValue } from '@wechat-clone/shared';
