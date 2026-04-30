@@ -1,20 +1,17 @@
 /**
- * @wechat-clone/shared — shared types, constants, and utilities
+ * @wechat-clone/shared — shared types, constants, utilities, and database schema
  */
 
-// placeholder type for user identity
-export interface User {
-  id: string;
-  username: string;
-  displayName: string;
-  avatar?: string;
-}
+export { RedisKeys, RedisKeyPatterns } from './db/redis-keys';
+export { messageIndexes, messageBoxIndexes } from './db/mongo-indexes';
 
-// placeholder type for message
-export interface Message {
-  id: string;
-  senderId: string;
-  content: string;
-  type: 'text' | 'image' | 'file';
-  createdAt: number;
-}
+// re-export generated Prisma client types (use @prisma/client for runtime)
+export type {
+  User,
+  Contact,
+  Group,
+  GroupMember,
+  Moment,
+  MomentLike,
+  MomentComment,
+} from '@prisma/client';
