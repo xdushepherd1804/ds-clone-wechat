@@ -17,9 +17,10 @@ cd "$PROJECT_DIR"
 COMPOSE_FILE="docker-compose.yml"
 COMPOSE_ENV="docker/.env"
 
-# Load env file if it exists
+# Build compose env-file argument
+COMPOSE_ENV_ARGS=""
 if [[ -f "$COMPOSE_ENV" ]]; then
-  export $(grep -v '^#' "$COMPOSE_ENV" | grep -v '^$' | xargs)
+  COMPOSE_ENV_ARGS="--env-file $COMPOSE_ENV"
 fi
 
 echo "=============================================="
@@ -50,7 +51,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "  → Starting services..."
-docker compose up -d $BUILD_FLAG $SERVICES
+docker compose $COMPOSE_ENV_ARGS up -d $BUILD_FLAG $SERVICES
 
 echo ""
 echo "  ✓ Development environment started"

@@ -18,8 +18,7 @@
 #   file                 — File upload service (port 3005)
 #   moments              — Moments/timeline service (port 3006)
 #   api-gateway          — API + WebSocket gateway (port 3000)
-#   web                  — React frontend via nginx (port 80)
-#   nginx                — Reverse proxy (port 8080)
+#   web                  — React SPA + reverse proxy (nginx on port 8080)
 # =============================================================================
 
 services:
@@ -193,28 +192,10 @@ services:
       target: web
     container_name: wc-web
     ports:
-      - '80:80'
-    depends_on:
-      - api-gateway
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:alpine
-    container_name: wc-nginx
-    ports:
       - '8080:80'
-    volumes:
-      - ./docker/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-      - web
       - api-gateway
     restart: unless-stopped
-    healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:80/health']
-      interval: 30s
-      timeout: 3s
-      retries: 3
-      start_period: 5s
 
 # ─── Persistent Volumes ────────────────────────────────────────────────────
 

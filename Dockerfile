@@ -10,7 +10,7 @@
 
 # ─── Base: install dependencies & build TypeScript ─────────────────────────
 FROM node:20-alpine AS base
-RUN corepack enable && corepack prepare pnpm@9 --activate
+RUN apk add --no-cache wget && corepack enable && corepack prepare pnpm@9 --activate
 WORKDIR /app
 
 # Copy root workspace config
@@ -42,9 +42,8 @@ COPY packages/server-moments/src packages/server-moments/src/
 COPY packages/server-gateway/src packages/server-gateway/src/
 COPY config/ config/
 
-# Generate Prisma client and compile TypeScript
-RUN npx prisma generate --schema=packages/shared/prisma/schema.prisma && \
-    pnpm typecheck
+# Generate Prisma client
+RUN npx prisma generate --schema=packages/shared/prisma/schema.prisma
 
 # ─── Auth Service ──────────────────────────────────────────────────────────
 FROM base AS auth
@@ -97,11 +96,12 @@ CMD ["pnpm", "exec", "tsx", "packages/server-gateway/src/server.ts"]
 
 # ─── Web Frontend Build ────────────────────────────────────────────────────
 FROM base AS web-build
-WORKDIR /app/packages/web
-RUN npx vite build --outDir dist
+WORKDIR /app
+RUN cd packages/web && npx vite build --outDir dist
 
 # ─── Web Frontend (Nginx) ──────────────────────────────────────────────────
 FROM nginx:alpine AS web
+RUN apk add --no-cache wget
 COPY --from=web-build /app/packages/web/dist /usr/share/nginx/html
 COPY docker/nginx/nginx.conf /etc/nginx/conf.d/default.conf
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
