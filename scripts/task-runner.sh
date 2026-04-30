@@ -35,7 +35,7 @@ DRY_RUN=false
 MAX_PARALLEL=2
 TARGET_TASK=""
 POLL_INTERVAL=10  # 扫描间隔 (秒)
-MAX_AUTO_RETRIES=3  # 失败任务自动重试上限
+MAX_AUTO_RETRIES=3
 
 # ============================================================
 # 参数解析
@@ -93,25 +93,15 @@ release_lock() {
   done
 }
 
-# ============================================================
-# 重试计数器
-# ============================================================
-
-get_retry_count() {
-  local task_id="$1"
-  cat "$LOCK_DIR/${task_id}.retries" 2>/dev/null || echo 0
-}
-
-increment_retry_count() {
-  local task_id="$1"
-  local count
-  count=$(get_retry_count "$task_id")
-  echo $((count + 1)) > "$LOCK_DIR/${task_id}.retries"
-}
-
 reset_retry_count() {
-  local task_id="$1"
-  rm -f "$LOCK_DIR/${task_id}.retries"
+  rm -f "$LOCK_DIR/${1}.retries"
+}
+
+is_pid_alive() {
+  local pid_file="$PROJECT_DIR/.running/${1}.pid"
+  local pid=""
+  [[ -f "$pid_file" ]] && read -r pid < "$pid_file" 2>/dev/null || true
+  [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null
 }
 
 # 扫描日志中的异常信号
@@ -675,46 +665,32 @@ show_dashboard() {
 # 僵尸任务恢复
 # ============================================================
 
-# 恢复僵尸/失败任务：
-#   1. in_progress + 无锁文件  → 进程崩溃，重置为 pending
-#   2. pending + 陈旧锁文件    → 锁残留但进程已死，清除锁
-#   3. failed                  → 在重试上限内重置为 pending
 recover_zombies() {
   for task_file in $(list_tasks); do
     local id status
     id=$(basename "$task_file" .md)
     status=$(get_status "$task_file")
 
-    # 情况1: in_progress 但无锁 → 进程异常退出
     if [[ "$status" == "in_progress" ]] && [[ ! -f "$LOCK_DIR/${id}.lock" ]]; then
       echo "  ↻ 恢复僵尸任务 (in_progress/无锁): $id → pending"
       update_status "$task_file" "pending"
       continue
     fi
 
-    # 情况2: pending 但有陈旧锁 → 检查对应 PID 是否存活
     if [[ "$status" == "pending" ]] && [[ -f "$LOCK_DIR/${id}.lock" ]]; then
-      local pid_file="$PROJECT_DIR/.running/${id}.pid"
-      local pid_alive=false
-      if [[ -f "$pid_file" ]]; then
-        local pid
-        pid=$(cat "$pid_file" 2>/dev/null || true)
-        [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null && pid_alive=true
-      fi
-      if [[ "$pid_alive" == "false" ]]; then
+      if ! is_pid_alive "$id"; then
         echo "  ↻ 清除僵尸锁 (pending/陈旧锁): $id"
-        rm -f "$LOCK_DIR/${id}.lock"
-        [[ -f "$pid_file" ]] && rm -f "$pid_file"
+        rm -f "$LOCK_DIR/${id}.lock" "$PROJECT_DIR/.running/${id}.pid"
       fi
       continue
     fi
 
-    # 情况3: failed → 在重试上限内自动重试
     if [[ "$status" == "failed" ]]; then
-      local retries
-      retries=$(get_retry_count "$id")
-      if [[ $retries -lt $MAX_AUTO_RETRIES ]]; then
-        increment_retry_count "$id"
+      local retries=0
+      [[ -f "$LOCK_DIR/${id}.retries" ]] && read -r retries < "$LOCK_DIR/${id}.retries"
+      retries=${retries:-0}
+      if (( retries < MAX_AUTO_RETRIES )); then
+        echo $(( retries + 1 )) > "$LOCK_DIR/${id}.retries"
         echo "  ↻ 重试失败任务: $id (第 $((retries + 1))/${MAX_AUTO_RETRIES} 次) → pending"
         update_status "$task_file" "pending"
       else
@@ -976,7 +952,7 @@ case "${1:-}" in
       exit 1
     fi
     if [[ "$task_id" == "all" ]]; then
-      rm -f "$LOCK_DIR"/*.retries
+      find "$LOCK_DIR" -maxdepth 1 -name '*.retries' -delete
       echo "✓ 已清除所有任务的重试计数"
     else
       reset_retry_count "$task_id"
