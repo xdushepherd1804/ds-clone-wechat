@@ -154,14 +154,14 @@ function matchRoute(
   if (method === 'POST' && (path === '/api/auth/login' || path === '/login')) return { handler: 'login' };
   if (method === 'POST' && (path === '/api/auth/logout' || path === '/logout')) return { handler: 'logout' };
   if (method === 'POST' && (path === '/api/auth/refresh' || path === '/refresh')) return { handler: 'refresh' };
-  if (method === 'GET' && (path === '/api/users/me' || path === '/users/me')) return { handler: 'getMe' };
-  if (method === 'PUT' && (path === '/api/users/me' || path === '/users/me')) return { handler: 'updateMe' };
-  if (method === 'POST' && (path === '/api/users/search' || path === '/users/search')) return { handler: 'searchUsers' };
-  if (method === 'PUT' && (path === '/api/users/me/avatar' || path === '/users/me/avatar')) return { handler: 'updateAvatar' };
-  if (method === 'PUT' && (path === '/api/users/me/password' || path === '/users/me/password')) return { handler: 'changePassword' };
+  if (method === 'GET' && (path === '/api/users/me' || path === '/users/me' || path === '/me')) return { handler: 'getMe' };
+  if (method === 'PUT' && (path === '/api/users/me' || path === '/users/me' || path === '/me')) return { handler: 'updateMe' };
+  if (method === 'POST' && (path === '/api/users/search' || path === '/users/search' || path === '/search')) return { handler: 'searchUsers' };
+  if (method === 'PUT' && (path === '/api/users/me/avatar' || path === '/users/me/avatar' || path === '/me/avatar')) return { handler: 'updateAvatar' };
+  if (method === 'PUT' && (path === '/api/users/me/password' || path === '/users/me/password' || path === '/me/password')) return { handler: 'changePassword' };
 
-  // GET /api/users/:id or /users/:id
-  const userMatch = path.match(/^\/(?:api\/)?users\/([a-zA-Z0-9_-]+)$/);
+  // GET /api/users/:id or /users/:id or /:id (gateway-stripped)
+  const userMatch = path.match(/^\/(?:api\/)?(?:users\/)?([a-zA-Z0-9_-]+)$/);
   if (method === 'GET' && userMatch) {
     return { handler: 'getUser', params: { id: userMatch[1] } };
   }

@@ -567,6 +567,17 @@ export function createGroupService(deps: GroupServiceDeps) {
     return member.mutedUntil > new Date();
   }
 
+  // ─── List User Groups ──────────────────────────────────────────────────
+
+  async function listUserGroups(userId: string): Promise<GroupInfo[]> {
+    const memberships = await prisma.groupMember.findMany({
+      where: { userId },
+      include: { group: true },
+      orderBy: { joinedAt: 'desc' },
+    });
+    return memberships.map((m) => mapToGroupInfo(m.group));
+  }
+
   return {
     createGroup,
     getGroup,
@@ -584,5 +595,6 @@ export function createGroupService(deps: GroupServiceDeps) {
     muteMember,
     validateMentions,
     isMuted,
+    listUserGroups,
   };
 }

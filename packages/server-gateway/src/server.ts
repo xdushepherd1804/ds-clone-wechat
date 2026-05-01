@@ -159,10 +159,10 @@ const server = createServer((req, res) => {
       return;
     }
 
-    // 4. Router — match route prefix first
+    // 4. Router — match route prefix (with or without trailing slash)
     let matchedRoute: RouteEntry | undefined;
     for (const route of routes) {
-      if (pathname.startsWith(route.prefix)) {
+      if (pathname.startsWith(route.prefix) || pathname === route.prefix.replace(/\/$/, '')) {
         matchedRoute = route;
         break;
       }
@@ -209,7 +209,8 @@ const server = createServer((req, res) => {
 
     // 6. Proxy to matched service
     if (matchedRoute) {
-      const servicePath = pathname.slice(matchedRoute.prefix.length - 1); // keep leading /
+      const prefixNoSlash = matchedRoute.prefix.replace(/\/$/, '');
+      const servicePath = pathname === prefixNoSlash ? '/' : pathname.slice(matchedRoute.prefix.length - 1);
       const target = services[matchedRoute.service];
       if (target) {
         proxyRequest(req, res, target, servicePath);

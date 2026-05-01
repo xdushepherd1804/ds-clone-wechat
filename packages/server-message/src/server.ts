@@ -127,30 +127,30 @@ function matchRoute(method: string, url: string): MatchedRoute | null {
     return { handler: 'health' };
   }
 
-  if (method === 'POST' && (path === '/api/messages/send' || path === '/messages/send')) {
+  if (method === 'POST' && (path === '/api/messages/send' || path === '/messages/send' || path === '/send')) {
     return { handler: 'sendMessage' };
   }
 
-  if (method === 'GET' && (path === '/api/messages/history' || path === '/messages/history')) {
+  if (method === 'GET' && (path === '/api/messages/history' || path === '/messages/history' || path === '/history')) {
     return { handler: 'getMessages' };
   }
 
-  if (method === 'GET' && (path === '/api/messages/conversations' || path === '/messages/conversations')) {
+  if (method === 'GET' && (path === '/api/messages/conversations' || path === '/messages/conversations' || path === '/conversations')) {
     return { handler: 'getConversations' };
   }
 
-  if (method === 'GET' && (path === '/api/messages/offline' || path === '/messages/offline')) {
+  if (method === 'GET' && (path === '/api/messages/offline' || path === '/messages/offline' || path === '/offline')) {
     return { handler: 'getOfflineMessages' };
   }
 
   // PUT /api/messages/read/:conv_id
-  const readMatch = path.match(/^\/(?:api\/)?messages\/read\/([a-zA-Z0-9_:.-]+)$/);
+  const readMatch = path.match(/^\/(?:api\/)?(?:messages\/)?read\/([a-zA-Z0-9_:.-]+)$/);
   if (method === 'PUT' && readMatch) {
     return { handler: 'markRead', params: { convId: readMatch[1] } };
   }
 
   // DELETE /api/messages/:msg_id
-  const deleteMatch = path.match(/^\/(?:api\/)?messages\/([a-zA-Z0-9_-]+)$/);
+  const deleteMatch = path.match(/^\/(?:api\/)?(?:messages\/)?([a-zA-Z0-9_-]+)$/);
   if (method === 'DELETE' && deleteMatch) {
     return { handler: 'recallMessage', params: { msgId: deleteMatch[1] } };
   }

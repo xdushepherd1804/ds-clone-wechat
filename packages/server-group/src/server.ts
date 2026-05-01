@@ -96,88 +96,102 @@ interface MatchedRoute {
 }
 
 function matchRoute(method: string, url: string): MatchedRoute | null {
-  const path = new URL(url, 'http://localhost').pathname;
+  let path = new URL(url, 'http://localhost').pathname;
 
   if (method === 'GET' && path === '/health') {
     return { handler: 'health' };
   }
 
-  // POST /api/groups/create
-  if (method === 'POST' && path === '/api/groups/create') {
+  // Normalize: strip /api/groups or /groups prefix (from direct access or gateway)
+  path = path.replace(/^\/(?:api\/)?groups/, '') || '/';
+
+  // POST /create
+  if (method === 'POST' && path === '/create') {
     return { handler: 'createGroup' };
   }
 
-  // GET /api/groups/:id
-  const getGroupMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)$/);
+  // GET / => list user's groups
+  if (method === 'GET' && path === '/') {
+    return { handler: 'listGroups' };
+  }
+
+  // GET /:id
+  const getGroupMatch = path.match(/^\/([a-zA-Z0-9_-]+)$/);
   if (method === 'GET' && getGroupMatch) {
     return { handler: 'getGroup', params: { id: getGroupMatch[1] } };
   }
 
-  // DELETE /api/groups/:id (dissolve)
+  // DELETE /:id (dissolve)
   if (method === 'DELETE' && getGroupMatch) {
     return { handler: 'dissolveGroup', params: { id: getGroupMatch[1] } };
   }
 
-  // PUT /api/groups/:id (update)
-  if (method === 'PUT' && getGroupMatch) {
+  // PUT/PATCH /:id (update)
+  if ((method === 'PUT' || method === 'PATCH') && getGroupMatch) {
     return { handler: 'updateGroup', params: { id: getGroupMatch[1] } };
   }
 
-  // GET /api/groups/:id/members
-  const membersMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/members$/);
+  // GET /:id/members
+  const membersMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/members$/);
   if (method === 'GET' && membersMatch) {
     return { handler: 'getMembers', params: { id: membersMatch[1] } };
   }
 
-  // POST /api/groups/:id/members (add/invite)
+  // POST /:id/members (add/invite)
   if (method === 'POST' && membersMatch) {
     return { handler: 'addMembers', params: { id: membersMatch[1] } };
   }
 
-  // DELETE /api/groups/:id/members/:uid (kick)
-  const kickMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/members\/([a-zA-Z0-9_-]+)$/);
+  // DELETE /:id/members/:uid (kick)
+  const kickMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/members\/([a-zA-Z0-9_-]+)$/);
   if (method === 'DELETE' && kickMatch) {
     return { handler: 'removeMember', params: { id: kickMatch[1], uid: kickMatch[2] } };
   }
 
-  // PUT /api/groups/:id/members/:uid/role
-  const roleMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/members\/([a-zA-Z0-9_-]+)\/role$/);
+  // PUT /:id/members/:uid/role
+  const roleMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/members\/([a-zA-Z0-9_-]+)\/role$/);
   if (method === 'PUT' && roleMatch) {
     return { handler: 'updateMemberRole', params: { id: roleMatch[1], uid: roleMatch[2] } };
   }
 
-  // POST /api/groups/:id/join
-  const joinMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/join$/);
+  // PUT/PATCH /:id/members/nickname
+  const nicknameMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/members\/nickname$/);
+  if ((method === 'PUT' || method === 'PATCH') && nicknameMatch) {
+    return { handler: 'updateMemberNickname', params: { id: nicknameMatch[1] } };
+  }
+
+  // POST /:id/join
+  const joinMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/join$/);
   if (method === 'POST' && joinMatch) {
     return { handler: 'joinGroup', params: { id: joinMatch[1] } };
   }
 
-  // PUT /api/groups/:id/join/:uid (approve/reject)
-  const approveMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/join\/([a-zA-Z0-9_-]+)$/);
+  // PUT /:id/join/:uid (approve/reject)
+  const approveMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/join\/([a-zA-Z0-9_-]+)$/);
   if (method === 'PUT' && approveMatch) {
     return { handler: 'approveJoin', params: { id: approveMatch[1], uid: approveMatch[2] } };
   }
 
-  // POST /api/groups/:id/quit
-  const quitMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/quit$/);
+  // POST /:id/quit
+  const quitMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/quit$/);
   if (method === 'POST' && quitMatch) {
     return { handler: 'quitGroup', params: { id: quitMatch[1] } };
   }
 
-  // PUT /api/groups/:id/announcement
-  const announcementMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/announcement$/);
+  // PUT /:id/announcement
+  const announcementMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/announcement$/);
   if (method === 'PUT' && announcementMatch) {
     return { handler: 'setAnnouncement', params: { id: announcementMatch[1] } };
   }
 
-  // PUT /api/groups/:id/mute/:uid
-  const muteMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/mute\/([a-zA-Z0-9_-]+)$/);
+  // PUT /:id/mute/:uid
+  const muteMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/mute\/([a-zA-Z0-9_-]+)$/);
   if (method === 'PUT' && muteMatch) {
     return { handler: 'muteMember', params: { id: muteMatch[1], uid: muteMatch[2] } };
   }
 
-  // POST /api/groups/:id/mentions/validate
-  const mentionsMatch = path.match(/^\/api\/groups\/([a-zA-Z0-9_-]+)\/mentions\/validate$/);
+  // POST /:id/mentions/validate
+  const mentionsMatch = path.match(/^\/([a-zA-Z0-9_-]+)\/mentions\/validate$/);
   if (method === 'POST' && mentionsMatch) {
     return { handler: 'validateMentions', params: { id: mentionsMatch[1] } };
   }
@@ -225,6 +239,13 @@ async function start() {
             memberIds: body.memberIds as string[] | undefined,
           });
           sendJson(res, 201, { code: ErrorCode.SUCCESS, data: group as unknown as Record<string, unknown> });
+          return;
+        }
+
+        case 'listGroups': {
+          const userId = getUserId(req);
+          const groups = await service.listUserGroups(userId);
+          sendJson(res, 200, { code: ErrorCode.SUCCESS, data: groups as unknown as Record<string, unknown> });
           return;
         }
 
@@ -290,6 +311,18 @@ async function start() {
             userId: route.params!.uid,
             role: body.role as GroupRole,
             operatorId: userId,
+          });
+          sendJson(res, 200, { code: ErrorCode.SUCCESS, data: member as unknown as Record<string, unknown> });
+          return;
+        }
+
+        case 'updateMemberNickname': {
+          const userId = getUserId(req);
+          const body = await parseBody(req);
+          const member = await service.updateMemberNickname({
+            groupId: route.params!.id,
+            userId,
+            nicknameInGroup: body.nicknameInGroup as string,
           });
           sendJson(res, 200, { code: ErrorCode.SUCCESS, data: member as unknown as Record<string, unknown> });
           return;
