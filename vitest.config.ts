@@ -1,8 +1,22 @@
 import { defineConfig } from 'vitest/config';
+import path from 'node:path';
 
 export default defineConfig({
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'packages/web/src'),
+    },
+  },
   test: {
+    pool: 'forks',
+    testTimeout: 15_000,
+    hookTimeout: 15_000,
+    environment: 'node',
     include: ['packages/*/src/**/*.test.{ts,tsx}'],
+    environmentMatchGlobs: [
+      ['packages/web/**', 'jsdom'],
+    ],
+    setupFiles: ['./packages/web/src/test-setup.ts'],
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.ts'],

@@ -7,9 +7,15 @@ describe('server-file', () => {
       expect(mod).toBeDefined();
     });
 
-    it('is an object', async () => {
+    it('exports createFileService', async () => {
       const mod = await import('./index');
-      expect(typeof mod).toBe('object');
+      expect(mod.createFileService).toBeDefined();
+      expect(typeof mod.createFileService).toBe('function');
+    });
+
+    it('exports FileError', async () => {
+      const mod = await import('./index');
+      expect(mod.FileError).toBeDefined();
     });
   });
 });

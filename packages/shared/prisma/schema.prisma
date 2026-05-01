@@ -28,9 +28,16 @@ model User {
   contactOf       Contact[]   @relation("ContactOf")
   ownedGroups     Group[]     @relation("GroupOwner")
   groupMemberships GroupMember[]
+  joinRequests    GroupJoinRequest[]
   moments         Moment[]
   momentLikes     MomentLike[]
   momentComments  MomentComment[]
+  sentRedPackets  RedPacket[]         @relation("RedPacketSender")
+  openedRedPackets RedPacketRecord[]  @relation("RedPacketReceiver")
+  deviceTokens    DeviceToken[]
+  stickers        Sticker[]
+  stickerFavorites StickerFavorite[]
+  stickerPacks    StickerPack[]
 
   @@map("users")
 }
@@ -65,9 +72,11 @@ model Group {
   announcement String?  @db.Text
   memberCount  Int      @default(0) @map("member_count")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz()
 
-  owner  User          @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  members GroupMember[]
+  owner       User               @relation("GroupOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  joinRequests GroupJoinRequest[]
 
   @@index([ownerId])
   @@map("groups")
@@ -76,12 +85,13 @@ model Group {
 // ─── Group Members ───────────────────────────────────────────────────────────
 
 model GroupMember {
-  id              String   @id @default(uuid()) @db.Uuid
-  groupId         String   @map("group_id") @db.Uuid
-  userId          String   @map("user_id") @db.Uuid
-  role            String   @default("member") @db.VarChar(20)
-  nicknameInGroup String?  @map("nickname_in_group") @db.VarChar(100)
-  joinedAt        DateTime @default(now()) @map("joined_at") @db.Timestamptz()
+  id              String    @id @default(uuid()) @db.Uuid
+  groupId         String    @map("group_id") @db.Uuid
+  userId          String    @map("user_id") @db.Uuid
+  role            String    @default("member") @db.VarChar(20)
+  nicknameInGroup String?   @map("nickname_in_group") @db.VarChar(100)
+  mutedUntil      DateTime? @map("muted_until") @db.Timestamptz()
+  joinedAt        DateTime  @default(now()) @map("joined_at") @db.Timestamptz()
 
   group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -89,6 +99,25 @@ model GroupMember {
   @@unique([groupId, userId])
   @@index([userId])
   @@map("group_members")
+}
+
+// ─── Group Join Requests ──────────────────────────────────────────────────────
+
+model GroupJoinRequest {
+  id        String   @id @default(uuid()) @db.Uuid
+  groupId   String   @map("group_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  message   String?  @db.VarChar(200)
+  status    String   @default("pending") @db.VarChar(20)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  group Group @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+  @@index([groupId])
+  @@index([userId])
+  @@map("group_join_requests")
 }
 
 // ─── Moments ─────────────────────────────────────────────────────────────────
@@ -123,6 +152,113 @@ model MomentLike {
 
   @@unique([momentId, userId])
   @@map("moment_likes")
+}
+
+// ─── Red Packets ──────────────────────────────────────────────────────────────
+
+model RedPacket {
+  id              String   @id @default(uuid()) @db.Uuid
+  senderId        String   @map("sender_id") @db.Uuid
+  conversationId  String?  @map("conversation_id") @db.VarChar(100)
+  totalAmount     Float    @map("total_amount")
+  totalCount      Int      @map("total_count")
+  remainingCount  Int      @map("remaining_count")
+  remainingAmount Float    @map("remaining_amount")
+  type            String   @db.VarChar(20)
+  blessing        String?  @db.VarChar(100)
+  status          String   @default("active") @db.VarChar(20)
+  expiredAt       DateTime @map("expired_at") @db.Timestamptz()
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  sender  User               @relation("RedPacketSender", fields: [senderId], references: [id], onDelete: Cascade)
+  records RedPacketRecord[]
+
+  @@index([senderId])
+  @@index([conversationId])
+  @@index([status, expiredAt])
+  @@map("red_packets")
+}
+
+model RedPacketRecord {
+  id        String   @id @default(uuid()) @db.Uuid
+  packetId  String   @map("packet_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  amount    Float
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  packet RedPacket @relation(fields: [packetId], references: [id], onDelete: Cascade)
+  user   User      @relation("RedPacketReceiver", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([packetId, userId])
+  @@index([userId])
+  @@map("red_packet_records")
+}
+
+// ─── Device Tokens ──────────────────────────────────────────────────────────
+
+model DeviceToken {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  platform    String   @db.VarChar(10)
+  deviceToken String   @map("device_token") @db.VarChar(500)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, deviceToken])
+  @@index([userId])
+  @@map("device_tokens")
+}
+
+// ─── Stickers ────────────────────────────────────────────────────────────────
+
+model Sticker {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  name         String   @db.VarChar(100)
+  url          String   @db.VarChar(500)
+  thumbnailUrl String?  @map("thumbnail_url") @db.VarChar(500)
+  width        Int?
+  height       Int?
+  category     String?  @db.VarChar(50)
+  isPublic     Boolean  @default(false) @map("is_public")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user     User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favorites StickerFavorite[]
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("stickers")
+}
+
+model StickerFavorite {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  stickerId String   @map("sticker_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sticker Sticker @relation(fields: [stickerId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, stickerId])
+  @@index([userId])
+  @@map("sticker_favorites")
+}
+
+model StickerPack {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  name        String   @db.VarChar(100)
+  coverUrl    String?  @map("cover_url") @db.VarChar(500)
+  stickerIds  String[] @default([]) @map("sticker_ids")
+  isPublic    Boolean  @default(false) @map("is_public")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz()
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sticker_packs")
 }
 
 // ─── Moment Comments ─────────────────────────────────────────────────────────

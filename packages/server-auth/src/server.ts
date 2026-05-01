@@ -16,7 +16,7 @@ import swaggerSpec from './swagger.json' assert { type: 'json' };
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';
 const config = loadConfig(CONFIG_DIR);
 const PORT = config.services.auth.port;
-const HOST = config.services.auth.host;
+const HOST = '0.0.0.0';
 
 const prisma = new PrismaClient();
 const redisUrl = process.env.REDIS_URL || `redis://${config.database.redis.host}:${config.database.redis.port}`;
@@ -116,6 +116,28 @@ function getClientIp(req: IncomingMessage): string {
   return req.socket.remoteAddress || '127.0.0.1';
 }
 
+const SWAGGER_UI_HTML = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Auth Service — API Docs</title>
+  <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+</head>
+<body>
+  <div id="swagger-ui"></div>
+  <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js" crossorigin></script>
+  <script>
+    SwaggerUIBundle({
+      url: '/api/docs/swagger.json',
+      dom_id: '#swagger-ui',
+      deepLinking: true,
+      defaultModelsExpandDepth: -1,
+    });
+  </script>
+</body>
+</html>`;
+
 function matchRoute(
   method: string,
   url: string,
@@ -169,6 +191,18 @@ const server = createServer(async (req, res) => {
     switch (route.handler) {
       case 'health': {
         sendJson(res, 200, { status: 'ok', service: 'auth', timestamp: Date.now() });
+        return;
+      }
+
+      case 'swaggerJson': {
+        sendJson(res, 200, swaggerSpec as unknown as Record<string, unknown>);
+        return;
+      }
+
+      case 'swaggerUi': {
+        const html = SWAGGER_UI_HTML;
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(html);
         return;
       }
 

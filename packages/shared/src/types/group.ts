@@ -10,6 +10,16 @@ export interface GroupInfo {
   myRole?: GroupRole;
   myNicknameInGroup?: string;
   createdAt: string;
+  updatedAt: string;
+}
+
+export interface GroupJoinRequestInfo {
+  id: string;
+  groupId: string;
+  userId: string;
+  message: string | null;
+  status: 'pending' | 'approved' | 'rejected';
+  createdAt: string;
 }
 
 export interface GroupMember {

@@ -67,3 +67,11 @@ export async function updateMemberNickname(
 ): Promise<void> {
   await apiClient.patch(`/groups/${groupId}/members/nickname`, data);
 }
+
+export async function dissolveGroup(groupId: string): Promise<void> {
+  await apiClient.delete(`/groups/${groupId}`);
+}
+
+export async function quitGroup(groupId: string): Promise<void> {
+  await apiClient.post(`/groups/${groupId}/quit`);
+}

@@ -49,6 +49,34 @@ export const ErrorCode = {
   FILE_TYPE_NOT_ALLOWED: 7001,
   FILE_UPLOAD_FAILED: 7002,
   FILE_NOT_FOUND: 7003,
+
+  // 音视频通话 9xxx
+  CALL_NOT_FOUND: 9000,
+  CALL_ALREADY_IN_CALL: 9001,
+  CALL_USER_BUSY: 9002,
+  CALL_TIMEOUT: 9003,
+  CALL_REJECTED: 9004,
+  CALL_SIGNALING_FAILED: 9005,
+
+  // 红包 8xxx
+  RED_PACKET_NOT_FOUND: 8000,
+  RED_PACKET_EXPIRED: 8001,
+  RED_PACKET_FINISHED: 8002,
+  RED_PACKET_ALREADY_OPENED: 8003,
+  RED_PACKET_INSUFFICIENT_BALANCE: 8004,
+
+  // 二维码 10xxx
+  QRCODE_GENERATE_FAILED: 10000,
+  QRCODE_INVALID: 10001,
+  QRCODE_EXPIRED: 10002,
+  INVITE_CODE_INVALID: 10003,
+  INVITE_CODE_EXPIRED: 10004,
+
+  // 贴图 11xxx
+  STICKER_NOT_FOUND: 11000,
+  STICKER_UPLOAD_FAILED: 11001,
+  STICKER_ALREADY_FAVORITED: 11002,
+  STICKER_NOT_FAVORITED: 11003,
 } as const;
 
 export type ErrorCodeValue = (typeof ErrorCode)[keyof typeof ErrorCode];
@@ -96,4 +124,28 @@ export const ErrorMessage: Record<ErrorCodeValue, string> = {
   [ErrorCode.FILE_TYPE_NOT_ALLOWED]: '文件类型不支持',
   [ErrorCode.FILE_UPLOAD_FAILED]: '文件上传失败',
   [ErrorCode.FILE_NOT_FOUND]: '文件不存在',
+
+  [ErrorCode.CALL_NOT_FOUND]: '通话不存在',
+  [ErrorCode.CALL_ALREADY_IN_CALL]: '您正在通话中',
+  [ErrorCode.CALL_USER_BUSY]: '对方正在通话中',
+  [ErrorCode.CALL_TIMEOUT]: '对方无人接听',
+  [ErrorCode.CALL_REJECTED]: '对方已拒绝',
+  [ErrorCode.CALL_SIGNALING_FAILED]: '信令发送失败',
+
+  [ErrorCode.RED_PACKET_NOT_FOUND]: '红包不存在',
+  [ErrorCode.RED_PACKET_EXPIRED]: '红包已过期',
+  [ErrorCode.RED_PACKET_FINISHED]: '红包已抢完',
+  [ErrorCode.RED_PACKET_ALREADY_OPENED]: '已领取过该红包',
+  [ErrorCode.RED_PACKET_INSUFFICIENT_BALANCE]: '余额不足',
+
+  [ErrorCode.QRCODE_GENERATE_FAILED]: '二维码生成失败',
+  [ErrorCode.QRCODE_INVALID]: '无效的二维码',
+  [ErrorCode.QRCODE_EXPIRED]: '二维码已过期',
+  [ErrorCode.INVITE_CODE_INVALID]: '无效的邀请码',
+  [ErrorCode.INVITE_CODE_EXPIRED]: '邀请码已过期',
+
+  [ErrorCode.STICKER_NOT_FOUND]: '贴图不存在',
+  [ErrorCode.STICKER_UPLOAD_FAILED]: '贴图上传失败',
+  [ErrorCode.STICKER_ALREADY_FAVORITED]: '已收藏该贴图',
+  [ErrorCode.STICKER_NOT_FAVORITED]: '未收藏该贴图',
 };

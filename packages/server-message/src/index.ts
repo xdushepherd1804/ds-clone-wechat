@@ -1,4 +1,9 @@
 // @wechat-clone/server-message — messaging service
-export function bootstrap(): void {
-  // TODO: initialize message service
-}
+export { createMessageService, MessageError } from './message.service';
+export type {
+  MessageServiceDeps,
+  SendMessageInput,
+  RecallMessageInput,
+  ConversationQuery,
+  OfflineMessageEvent,
+} from './message.service';

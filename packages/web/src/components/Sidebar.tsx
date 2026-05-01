@@ -5,6 +5,8 @@ import {
   ContactsOutlined,
   PictureOutlined,
   UserOutlined,
+  MonitorOutlined,
+  QrcodeOutlined,
 } from '@ant-design/icons';
 
 const items = [
@@ -12,6 +14,8 @@ const items = [
   { key: '/contacts', icon: <ContactsOutlined />, label: '通讯录' },
   { key: '/moments', icon: <PictureOutlined />, label: '朋友圈' },
   { key: '/me', icon: <UserOutlined />, label: '我的' },
+  { key: '/monitor', icon: <MonitorOutlined />, label: '监控' },
+  { key: '/qrcode', icon: <QrcodeOutlined />, label: '二维码' },
 ];
 
 export default function Sidebar() {
@@ -26,7 +30,7 @@ export default function Sidebar() {
       selectedKeys={[selectedKey]}
       items={items}
       onClick={({ key }) => navigate(key)}
-      style={{ width: 200, height: '100%', borderRight: '1px solid #f0f0f0' }}
+      style={{ height: '100%', borderRight: 'none' }}
     />
   );
 }

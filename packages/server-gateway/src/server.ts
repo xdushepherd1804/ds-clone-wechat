@@ -1,26 +1,29 @@
 /**
- * Docker entry point for the API + WebSocket gateway.
+ * API Gateway — request routing, JWT auth, rate limiting, logging, CORS.
  *
- * Features:
- * - Health check endpoint
- * - WebSocket upgrade handling
- * - Service registry discovery
- * - Reverse proxy to backend services
+ * Middleware chain:
+ *   Request → Logger → CORS → RateLimiter → Auth(JWT) → Router → Service
  */
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Socket } from 'node:net';
-import { createHash } from 'node:crypto';
-import { loadConfig, loadServiceRegistry } from '@wechat-clone/shared';
+import { loadConfig, loadServiceRegistry, ErrorCode, ErrorMessage } from '@wechat-clone/shared';
+import { verifyJwt, extractTokenFromHeader, JwtError } from './jwt-verify';
+import { createRateLimiter } from './rate-limiter';
+import { createLogger } from './logger';
+import { WsGateway } from './ws-gateway';
 
+// ─── Config ──────────────────────────────────────────────────────────────────
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';
 const config = loadConfig(CONFIG_DIR);
 const PORT = config.gateway.port;
+const JWT_SECRET = process.env.JWT_SECRET || config.jwt.secret;
 
 interface ServiceTarget {
   host: string;
   port: number;
 }
 
+// ─── Service registry ────────────────────────────────────────────────────────
 const services: Record<string, ServiceTarget> = {
   auth: { host: process.env.AUTH_HOST || 'auth', port: config.services.auth.port },
   message: { host: process.env.MESSAGE_HOST || 'message', port: config.services.message.port },
@@ -28,21 +31,66 @@ const services: Record<string, ServiceTarget> = {
   group: { host: process.env.GROUP_HOST || 'group', port: config.services.group.port },
   file: { host: process.env.FILE_HOST || 'file', port: config.services.file.port },
   moments: { host: process.env.MOMENTS_HOST || 'moments', port: config.services.moments.port },
+  search: { host: process.env.SEARCH_HOST || 'search', port: config.services.search?.port ?? 3008 },
+  push: { host: process.env.PUSH_HOST || 'push', port: (config.services as Record<string, { port: number; host?: string }>).push?.port ?? 3007 },
+  redpacket: { host: process.env.REDPACKET_HOST || 'redpacket', port: config.services.redpacket?.port ?? 3009 },
+  qrcode: { host: process.env.QRCODE_HOST || 'qrcode', port: config.services.qrcode?.port ?? 3010 },
 };
 
-/** Forward an HTTP request to a backend service via http.request */
+// ─── Route table ─────────────────────────────────────────────────────────────
+interface RouteEntry {
+  prefix: string;
+  service: string;
+  authRequired: boolean;
+}
+
+const routes: RouteEntry[] = [
+  { prefix: '/api/auth/', service: 'auth', authRequired: false },
+  { prefix: '/api/users/', service: 'auth', authRequired: true },
+  { prefix: '/api/messages/', service: 'message', authRequired: true },
+  { prefix: '/api/contacts/', service: 'contact', authRequired: true },
+  { prefix: '/api/groups/', service: 'group', authRequired: true },
+  { prefix: '/api/files/', service: 'file', authRequired: true },
+  { prefix: '/api/moments/', service: 'moments', authRequired: true },
+  { prefix: '/api/search/', service: 'search', authRequired: true },
+  { prefix: '/api/push/', service: 'push', authRequired: true },
+  { prefix: '/api/redpacket/', service: 'redpacket', authRequired: true },
+  { prefix: '/api/qrcode/', service: 'qrcode', authRequired: true },
+];
+
+// ─── Middleware instances ────────────────────────────────────────────────────
+const rateLimiter = createRateLimiter({ tokensPerInterval: 100, interval: 60_000 });
+const logger = createLogger();
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+function sendJson(res: ServerResponse, statusCode: number, data: Record<string, unknown>): void {
+  res.writeHead(statusCode, { 'Content-Type': 'application/json' });
+  res.end(JSON.stringify({ ...data, timestamp: Date.now() }));
+}
+
+function getClientIp(req: IncomingMessage): string {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string') return forwarded.split(',')[0].trim();
+  if (Array.isArray(forwarded)) return forwarded[0].trim();
+  return req.socket?.remoteAddress || '127.0.0.1';
+}
+
+/** Forward an HTTP request to a backend service */
 function proxyRequest(
   req: IncomingMessage,
   res: ServerResponse,
   target: ServiceTarget,
   path: string,
 ): void {
+  const headers = { ...req.headers };
+  delete headers.host;
+
   const options = {
     hostname: target.host,
     port: target.port,
     path,
     method: req.method,
-    headers: { ...req.headers, host: undefined },
+    headers,
   };
 
   const proxy = request(options, (proxyRes: IncomingMessage) => {
@@ -51,14 +99,23 @@ function proxyRequest(
   });
 
   proxy.on('error', () => {
-    res.writeHead(502, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'Service unavailable' }));
+    if (!res.headersSent) {
+      sendJson(res, 502, { code: ErrorCode.INTERNAL_ERROR, message: 'Service unavailable' });
+    }
   });
 
   req.pipe(proxy);
 }
 
+// ─── Server ──────────────────────────────────────────────────────────────────
 const server = createServer((req, res) => {
+  const start = Date.now();
+  const ip = getClientIp(req);
+
+  // 1. Logger
+  const logRequest = () => logger.log(req, res, start, ip);
+
+  // 2. CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -66,100 +123,132 @@ const server = createServer((req, res) => {
   if (req.method === 'OPTIONS') {
     res.writeHead(204);
     res.end();
+    logRequest();
     return;
   }
 
-  const url = req.url ?? '/';
-
-  // Health check
-  if (url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({
-      status: 'ok',
-      service: 'gateway',
-      timestamp: Date.now(),
-      services: Object.keys(services),
-    }));
-    return;
-  }
-
-  // API routing: /api/{service}/{path} → service
-  const apiMatch = url.match(/^\/api\/(auth|message|contact|group|file|moments)(\/.*)?$/);
-  if (apiMatch) {
-    const serviceName = apiMatch[1];
-    const servicePath = apiMatch[2] ?? '/';
-    const target = services[serviceName];
-    if (target) {
-      proxyRequest(req, res, target, servicePath);
+  try {
+    // 3. Rate limiting
+    if (!rateLimiter.consume(ip)) {
+      sendJson(res, 429, {
+        code: ErrorCode.RATE_LIMITED,
+        message: ErrorMessage[ErrorCode.RATE_LIMITED],
+      });
+      logRequest();
       return;
     }
-  }
 
-  // WS info endpoint
-  if (url === '/ws/info') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ wsEndpoint: '/ws', protocol: 'wechat-clone-v1' }));
-    return;
-  }
+    const url = req.url ?? '/';
+    const pathname = new URL(url, 'http://localhost').pathname;
 
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ service: 'gateway', message: 'Gateway running' }));
-});
+    // Health check
+    if (pathname === '/health') {
+      sendJson(res, 200, {
+        status: 'ok',
+        service: 'gateway',
+        services: Object.keys(services),
+      });
+      logRequest();
+      return;
+    }
 
-// WebSocket upgrade handling
-server.on('upgrade', (req: IncomingMessage, socket: Socket, head: Buffer) => {
-  const url = req.url ?? '/';
+    // WS info
+    if (pathname === '/ws/info') {
+      sendJson(res, 200, { wsEndpoint: '/ws', protocol: 'wechat-clone-v1' });
+      logRequest();
+      return;
+    }
 
-  if (url.startsWith('/ws')) {
-    socket.write(
-      'HTTP/1.1 101 Switching Protocols\r\n' +
-        'Upgrade: websocket\r\n' +
-        'Connection: Upgrade\r\n' +
-        'Sec-WebSocket-Accept: ' +
-        createHash('sha1')
-          .update((req.headers['sec-websocket-key'] ?? '') + '258EAFA5-E914-47DA-95CA-C5AB0DC85B11')
-          .digest('base64') +
-        '\r\n\r\n',
-    );
-
-    const ping = setInterval(() => {
-      try {
-        socket.write(Buffer.from([0x89, 0x00])); // WebSocket ping frame
-      } catch {
-        clearInterval(ping);
+    // 4. Router — match route prefix first
+    let matchedRoute: RouteEntry | undefined;
+    for (const route of routes) {
+      if (pathname.startsWith(route.prefix)) {
+        matchedRoute = route;
+        break;
       }
-    }, 30000);
+    }
 
-    socket.on('close', () => clearInterval(ping));
-    socket.on('error', () => clearInterval(ping));
+    // 5. Auth (JWT) — verify token for protected routes
+    if (matchedRoute && matchedRoute.authRequired) {
+      const token = extractTokenFromHeader(req.headers.authorization);
 
-    // Echo handler for testing
-    socket.on('data', (data: Buffer) => {
+      if (!token) {
+        sendJson(res, 401, {
+          code: ErrorCode.UNAUTHORIZED,
+          message: ErrorMessage[ErrorCode.UNAUTHORIZED],
+        });
+        logRequest();
+        return;
+      }
+
       try {
-        const opcode = data[0] & 0x0f;
-        if (opcode === 0x8) return; // close frame
-        if (opcode === 0x9) {
-          // pong
-          socket.write(Buffer.from([0x8a, data[1] & 0x7f, ...data.slice(2, 2 + (data[1] & 0x7f))]));
+        const payload = verifyJwt(token, JWT_SECRET);
+        if (payload.type !== 'access') {
+          sendJson(res, 401, {
+            code: ErrorCode.TOKEN_INVALID,
+            message: 'access token required',
+          });
+          logRequest();
           return;
         }
-        // Echo text frames
-        if (opcode === 0x1) {
-          socket.write(data);
-        }
-      } catch {
-        // ignore malformed frames
-      }
-    });
 
-    console.log(`[gateway] WebSocket connection upgraded: ${url}`);
-  } else {
-    socket.destroy();
+        // Inject user context into headers for downstream services
+        req.headers['x-user-id'] = payload.sub;
+        req.headers['x-username'] = payload.username;
+      } catch (err) {
+        if (err instanceof JwtError) {
+          const code =
+            err.message === 'token expired' ? ErrorCode.TOKEN_EXPIRED : ErrorCode.TOKEN_INVALID;
+          sendJson(res, 401, { code, message: ErrorMessage[code] });
+          logRequest();
+          return;
+        }
+        throw err;
+      }
+    }
+
+    // 6. Proxy to matched service
+    if (matchedRoute) {
+      const servicePath = pathname.slice(matchedRoute.prefix.length - 1); // keep leading /
+      const target = services[matchedRoute.service];
+      if (target) {
+        proxyRequest(req, res, target, servicePath);
+        logRequest();
+        return;
+      }
+    }
+
+    // 404 — no matching route
+    sendJson(res, 404, {
+      code: ErrorCode.NOT_FOUND,
+      message: '接口不存在',
+    });
+    logRequest();
+  } catch (err) {
+    if (!res.headersSent) {
+      sendJson(res, 500, {
+        code: ErrorCode.INTERNAL_ERROR,
+        message: ErrorMessage[ErrorCode.INTERNAL_ERROR],
+      });
+    }
+    logRequest();
   }
 });
 
+// ─── WebSocket gateway ───────────────────────────────────────────────────────
+const wsGateway = new WsGateway({
+  jwtSecret: JWT_SECRET,
+  maxConnectionsPerUser: 5,
+  heartbeatTimeoutMs: 60_000,
+  pingIntervalMs: 30_000,
+});
+
+server.on('upgrade', (req: IncomingMessage, socket: Socket, head: Buffer) => {
+  wsGateway.handleUpgrade(req, socket, head);
+});
+
+// ─── Start ───────────────────────────────────────────────────────────────────
 server.listen(PORT, '0.0.0.0', () => {
-  // Load service registry for validation
   try {
     const registry = loadServiceRegistry(CONFIG_DIR);
     const serviceNames = Object.keys(registry.services);
@@ -170,3 +259,15 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[gateway] listening on 0.0.0.0:${PORT}`);
   console.log('[gateway] WebSocket endpoint: /ws');
 });
+
+// ─── Graceful shutdown ───────────────────────────────────────────────────────
+function shutdown() {
+  console.log('[gateway] shutting down...');
+  wsGateway.shutdown();
+  server.close(() => process.exit(0));
+}
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
+
+// ─── Exports for testing ────────────────────────────────────────────────────
+export { rateLimiter, wsGateway };

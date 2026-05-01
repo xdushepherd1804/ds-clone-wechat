@@ -1,18 +1,18 @@
 import { describe, it, expect } from 'vitest';
-import { bootstrap } from './index';
+import { createMessageService, MessageError } from './index';
 
 describe('server-message', () => {
-  describe('bootstrap', () => {
-    it('is a function', () => {
-      expect(typeof bootstrap).toBe('function');
+  describe('module exports', () => {
+    it('exports createMessageService as a function', () => {
+      expect(typeof createMessageService).toBe('function');
     });
 
-    it('can be called without throwing', () => {
-      expect(() => bootstrap()).not.toThrow();
-    });
-
-    it('returns undefined (no return value)', () => {
-      expect(bootstrap()).toBeUndefined();
+    it('exports MessageError as a class', () => {
+      expect(typeof MessageError).toBe('function');
+      const err = new MessageError(1001, 'test error');
+      expect(err).toBeInstanceOf(Error);
+      expect(err.code).toBe(1001);
+      expect(err.message).toBe('test error');
     });
   });
 });

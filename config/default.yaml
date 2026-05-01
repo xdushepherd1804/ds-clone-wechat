@@ -29,6 +29,18 @@ services:
   moments:
     host: localhost
     port: 3006
+  push:
+    host: localhost
+    port: 3007
+  search:
+    host: localhost
+    port: 3008
+  redpacket:
+    host: localhost
+    port: 3009
+  qrcode:
+    host: localhost
+    port: 3010
 
 database:
   postgres:

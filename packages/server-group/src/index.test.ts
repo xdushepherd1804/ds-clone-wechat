@@ -7,9 +7,21 @@ describe('server-group', () => {
       expect(mod).toBeDefined();
     });
 
-    it('is an object', async () => {
+    it('exports createGroupService', async () => {
       const mod = await import('./index');
-      expect(typeof mod).toBe('object');
+      expect(typeof mod.createGroupService).toBe('function');
+    });
+
+    it('exports GroupError', async () => {
+      const mod = await import('./index');
+      expect(mod.GroupError).toBeDefined();
+      expect(mod.GroupError.prototype).toBeInstanceOf(Error);
+    });
+
+    it('exports type interfaces', async () => {
+      const mod = await import('./index');
+      // Types are compile-time only, but the module should be importable
+      expect(mod).toBeDefined();
     });
   });
 });

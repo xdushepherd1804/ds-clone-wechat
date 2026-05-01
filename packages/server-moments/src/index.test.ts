@@ -11,5 +11,17 @@ describe('server-moments', () => {
       const mod = await import('./index');
       expect(typeof mod).toBe('object');
     });
+
+    it('exports createMomentsService', async () => {
+      const mod = await import('./index');
+      expect(mod.createMomentsService).toBeDefined();
+      expect(typeof mod.createMomentsService).toBe('function');
+    });
+
+    it('exports MomentError', async () => {
+      const mod = await import('./index');
+      expect(mod.MomentError).toBeDefined();
+      expect(typeof mod.MomentError).toBe('function');
+    });
   });
 });

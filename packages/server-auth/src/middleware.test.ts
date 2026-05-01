@@ -100,6 +100,6 @@ describe('extractTokenFromHeader', () => {
   });
 
   it('handles empty string', () => {
-    expect(extractTokenFromHeader('')).toBe('');
+    expect(extractTokenFromHeader('')).toBeNull();
   });
 });

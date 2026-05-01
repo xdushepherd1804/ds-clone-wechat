@@ -33,8 +33,16 @@ export type * from './types/message';
 export type * from './types/contact';
 export type * from './types/group';
 export type * from './types/moments';
+export type * from './types/redpacket';
 export type * from './types/api';
 export type * from './types/ws';
+export type * from './types/call';
+export type * from './types/qrcode';
+export type * from './types/sticker';
+
+// Emoji
+export { EMOJI_CATEGORIES, ALL_EMOJIS, searchEmojis } from './emoji/emoji-data';
+export type { EmojiCategory } from './emoji/emoji-data';
 
 // Enums — runtime + type
 export { MsgType, MsgStatus, ChatType } from './types/message';
@@ -96,7 +104,9 @@ export type {
   Contact,
   Group,
   GroupMember,
-  Moment,
-  MomentLike,
-  MomentComment,
+  Moment as PrismaMoment,
+  MomentLike as PrismaMomentLike,
+  MomentComment as PrismaMomentComment,
+  RedPacket,
+  RedPacketRecord,
 } from '@prisma/client';

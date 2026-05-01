@@ -1,13 +1,37 @@
 /** 上行 — Client → Server */
 export interface WSRequest {
-  cmd: 'send_msg' | 'ack_msg' | 'heartbeat' | 'typing' | 'read';
+  cmd:
+    | 'send_msg'
+    | 'ack_msg'
+    | 'heartbeat'
+    | 'typing'
+    | 'read'
+    | 'call_request'
+    | 'call_accept'
+    | 'call_reject'
+    | 'call_cancel'
+    | 'offer_sdp'
+    | 'answer_sdp'
+    | 'ice_candidate'
+    | 'call_end';
   seq: number;
   body: Record<string, unknown>;
 }
 
 /** 下行 — Server → Client */
 export interface WSResponse {
-  cmd: 'new_msg' | 'ack' | 'error' | 'typing' | 'online_status';
+  cmd:
+    | 'new_msg'
+    | 'ack'
+    | 'error'
+    | 'typing'
+    | 'online_status'
+    | 'incoming_call'
+    | 'call_ended'
+    | 'call_timeout'
+    | 'offer_sdp'
+    | 'answer_sdp'
+    | 'ice_candidate';
   seq: number;
   body: Record<string, unknown>;
 }

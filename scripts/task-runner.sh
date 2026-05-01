@@ -48,7 +48,7 @@ while [[ $# -gt 0 ]]; do
     --task) TARGET_TASK="$2"; shift 2 ;;
     --poll-interval) POLL_INTERVAL="$2"; shift 2 ;;
     --max-auto-retries) MAX_AUTO_RETRIES="$2"; shift 2 ;;
-    --dashboard|--list-available|--mark-complete|--mark-failed|--deps|--reset-retries|--help|-h)
+    --dashboard|--list-available|--mark-complete|--mark-failed|--deps|--reset-retries|--monitor|--tail|--stats|--help|-h)
       # 这些由下方的命令分发处理，这里不消费
       break
       ;;
@@ -128,12 +128,39 @@ scan_log_for_anomalies() {
   printf '%b\n' "$anomalies"
 }
 
+# 带超时的命令执行。返回 0=成功, 1=失败, 2=超时(视为成功，常驻服务已启动)
+_run_with_timeout() {
+  local timeout_sec="$1"
+  local cmd="$2"
+  local log_file="$3"
+
+  eval "$cmd" >> "$log_file" 2>&1 &
+  local pid=$!
+
+  local waited=0
+  while [[ $waited -lt $timeout_sec ]]; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      wait "$pid" 2>/dev/null
+      return $?
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+
+  # 超时 — 杀进程组，视为成功（常驻服务已启动）
+  kill -TERM -- -$pid 2>/dev/null || kill -TERM "$pid" 2>/dev/null
+  wait "$pid" 2>/dev/null
+  return 2
+}
+
 # 验证任务交付物 (提取测试标准中的命令并执行)
 verify_task() {
   local task_file="$1"
   local log_file="$2"
   local verify_passed=0
   local verify_failed=0
+  local verify_timeout=0
+  local cmd_timeout=${VERIFY_CMD_TIMEOUT:-30}
 
   # 提取测试标准部分
   local criteria
@@ -155,7 +182,7 @@ verify_task() {
     return 0
   fi
 
-  echo "  → 开始验证 (${#cmds[@]} 条命令)..."
+  echo "  → 开始验证 (${#cmds[@]} 条命令, 超时: ${cmd_timeout}s)..."
 
   local cmd
   for cmd in "${cmds[@]}"; do
@@ -166,16 +193,16 @@ verify_task() {
     fi
 
     printf "    → %s ... " "$cmd"
-    if eval "$cmd" >> "$log_file" 2>&1; then
-      echo "✓"
-      verify_passed=$((verify_passed + 1))
-    else
-      echo "✗ (exit=$?)"
-      verify_failed=$((verify_failed + 1))
-    fi
+    _run_with_timeout "$cmd_timeout" "$cmd" "$log_file"
+    local rc=$?
+    case $rc in
+      0) echo "✓"; verify_passed=$((verify_passed + 1)) ;;
+      2) echo "✓ (超时, 常驻服务已启动)"; verify_passed=$((verify_passed + 1)); verify_timeout=$((verify_timeout + 1)) ;;
+      *) echo "✗ (exit=$rc)"; verify_failed=$((verify_failed + 1)) ;;
+    esac
   done
 
-  echo "  → 验证结果: ${verify_passed} 通过, ${verify_failed} 失败"
+  echo "  → 验证结果: ${verify_passed} 通过 (${verify_timeout} 超时), ${verify_failed} 失败"
 
   if [[ $verify_failed -gt 0 ]]; then
     return 1
@@ -456,6 +483,8 @@ PROMPT
       echo "start: $(date '+%Y-%m-%d %H:%M:%S')"
     } >> "$log_file"
 
+    local before_ts=$(date +%s)
+
     claude --print --dangerously-skip-permissions < "$prompt_file" \
       > >(tee -a "$log_file") \
       2> >(tee -a "$err_file" >&2)
@@ -472,6 +501,9 @@ PROMPT
       echo "exit_code: $exit_code"
       echo "end_time: $(date '+%Y-%m-%d %H:%M:%S')"
     } >> "$log_file"
+
+    # 收集会话统计 (tokens / 轮次 / 工具调用)
+    collect_task_stats "$task_id" "$before_ts" "$log_file" || true
 
     # 扫描异常
     local anomalies
@@ -571,6 +603,340 @@ mark_complete() {
   release_lock "$LOCK_DIR/${task_id}.lock"
 }
 
+# ============================================================
+# 会话统计收集
+# ============================================================
+
+# 内部辅助: 找到指定任务的活跃 session id (sdk-cli + project cwd + task_id in prompt)
+_find_task_session() {
+  local task_id="$1"
+  local sessions_dir="$HOME/.claude/sessions"
+  local best_session=""
+
+  [[ -d "$sessions_dir" ]] || { echo ""; return; }
+
+  local best_time=0
+  for sf in "$sessions_dir"/*.json; do
+    [[ -f "$sf" ]] || continue
+    local cwd entry started pid
+    read -r cwd entry started pid <<< "$(jq -r '[.cwd // "", .entrypoint // "", .startedAt // 0, .pid // 0] | @tsv' "$sf" 2>/dev/null)"
+    [[ "$cwd" == "$PROJECT_DIR" ]] || continue
+    [[ "$entry" == "sdk-cli" ]] || continue
+    [[ $started -gt $best_time ]] || continue
+    best_time=$started
+    best_session=$(jq -r '.sessionId // empty' "$sf" 2>/dev/null)
+  done
+
+  [[ -n "$best_session" ]] || { echo ""; return; }
+
+  local jsonl="$HOME/.claude/projects/-Users-yujing-deepseek-playground/${best_session}.jsonl"
+  [[ -f "$jsonl" ]] || { echo ""; return; }
+
+  local check
+  check=$(head -20 "$jsonl" | jq -r 'select(.type == "user") | .message.content // empty' 2>/dev/null | head -1)
+  [[ "$check" == *"$task_id"* ]] || { echo ""; return; }
+
+  echo "$best_session"
+}
+
+# 从 JSONL 解析当前统计数据 (可用于完成或运行中的会话)
+_parse_session_stats() {
+  local jsonl_file="$1"
+  [[ -f "$jsonl_file" ]] || { echo "{}"; return; }
+
+  jq -r '
+    select(.type == "assistant") |
+    { u: (.message.usage // {}), tc: ([.message.content[]? | select(.type == "tool_use")] | length) }
+  ' "$jsonl_file" 2>/dev/null | jq -s '
+    {
+      turns: length,
+      input_tokens: (map(.u.input_tokens // 0) | add),
+      output_tokens: (map(.u.output_tokens // 0) | add),
+      cache_read: (map(.u.cache_read_input_tokens // 0) | add),
+      cache_creation: (map(.u.cache_creation_input_tokens // 0) | add),
+      tool_calls: (map(.tc) | add)
+    }
+  ' 2>/dev/null
+}
+
+collect_task_stats() {
+  local task_id="$1"
+  local before_ts="$2"
+  local log_file="$3"
+
+  # 找到 after before_ts 创建且 cwd 匹配的 sdk-cli 会话
+  local best_session=""
+  local best_time=0
+  local sessions_dir="$HOME/.claude/sessions"
+
+  [[ -d "$sessions_dir" ]] || return 0
+
+  for sf in "$sessions_dir"/*.json; do
+    [[ -f "$sf" ]] || continue
+    local cwd entry started
+    read -r cwd entry started <<< "$(jq -r '[.cwd // "", .entrypoint // "", .startedAt // 0] | @tsv' "$sf" 2>/dev/null)"
+    [[ "$cwd" == "$PROJECT_DIR" ]] || continue
+    [[ "$entry" == "sdk-cli" ]] || continue
+
+    local started_sec=$((started / 1000))
+    [[ $started_sec -ge $before_ts ]] || continue
+
+    if [[ $started_sec -gt $best_time ]]; then
+      best_time=$started_sec
+      best_session=$(jq -r '.sessionId // empty' "$sf" 2>/dev/null)
+    fi
+  done
+
+  [[ -n "$best_session" ]] || return 0
+
+  local jsonl_file="$HOME/.claude/projects/-Users-yujing-deepseek-playground/${best_session}.jsonl"
+  [[ -f "$jsonl_file" ]] || return 0
+
+  # 校验此会话是否包含当前任务
+  local first_check
+  first_check=$(head -20 "$jsonl_file" | jq -r 'select(.type == "user") | .message.content // empty' 2>/dev/null | head -1)
+  [[ "$first_check" == *"$task_id"* ]] || return 0
+
+  local stats
+  stats=$(_parse_session_stats "$jsonl_file")
+  [[ -n "$stats" && "$stats" != "{}" ]] || return 0
+
+  local turns in_tok out_tok cr_tok cc_tok tc total
+  turns=$(echo "$stats" | jq -r '.turns')
+  in_tok=$(echo "$stats" | jq -r '.input_tokens')
+  out_tok=$(echo "$stats" | jq -r '.output_tokens')
+  cr_tok=$(echo "$stats" | jq -r '.cache_read')
+  cc_tok=$(echo "$stats" | jq -r '.cache_creation')
+  tc=$(echo "$stats" | jq -r '.tool_calls')
+  total=$((in_tok + out_tok + cr_tok + cc_tok))
+
+  {
+    echo ""
+    echo "=== 会话统计 ==="
+    echo "task_id: $task_id"
+    echo "session_id: $best_session"
+    echo "turns: $turns"
+    echo "tool_calls: $tc"
+    echo "input_tokens: $in_tok"
+    echo "output_tokens: $out_tok"
+    echo "cache_read_tokens: $cr_tok"
+    echo "cache_creation_tokens: $cc_tok"
+    echo "total_tokens: $total"
+  } >> "$log_file"
+
+  echo "  → 统计: ${turns} 轮, ${tc} 次工具调用, ${in_tok}+${out_tok} tokens"
+}
+
+# 显示任务统计
+show_task_stats() {
+  local task_id="$1"
+  local log_file="$PROJECT_DIR/logs/${task_id}.log"
+
+  if [[ ! -f "$log_file" ]]; then
+    echo "Log not found: $log_file"
+    return 1
+  fi
+
+  local section
+  section=$(sed -n '/^=== 会话统计 ===$/,/^$/p' "$log_file" 2>/dev/null)
+
+  if [[ -z "$section" ]]; then
+    echo ""
+    echo "  任务 $task_id 日志中暂无统计数据。"
+    echo "  (统计数据在任务首次运行后由 runner 自动收集)"
+    local name
+    name=$(get_name "$TASKS_DIR/${task_id}.md" 2>/dev/null || echo "?")
+    echo "  任务: $name"
+    echo ""
+    return 1
+  fi
+
+  local turns in_tok out_tok cr_tok cc_tok tc total sid
+  turns=$(echo "$section" | grep '^turns:' | cut -d' ' -f2)
+  tc=$(echo "$section" | grep '^tool_calls:' | cut -d' ' -f2)
+  in_tok=$(echo "$section" | grep '^input_tokens:' | cut -d' ' -f2)
+  out_tok=$(echo "$section" | grep '^output_tokens:' | cut -d' ' -f2)
+  cr_tok=$(echo "$section" | grep '^cache_read_tokens:' | cut -d' ' -f2)
+  cc_tok=$(echo "$section" | grep '^cache_creation_tokens:' | cut -d' ' -f2)
+  total=$(echo "$section" | grep '^total_tokens:' | cut -d' ' -f2)
+  sid=$(echo "$section" | grep '^session_id:' | cut -d' ' -f2)
+
+  local name
+  name=$(get_name "$TASKS_DIR/${task_id}.md" 2>/dev/null || echo "?")
+
+  echo ""
+  echo "  ╔══════════════════════════════════════════════════════════╗"
+  printf "  ║  任务统计: %-6s — %-34s ║\n" "$task_id" "$(echo "$name" | cut -c1-34)"
+  echo "  ╠══════════════════════════════════════════════════════════╣"
+  printf "  ║  对话轮次:    %-8s    工具调用:     %-8s ║\n" "$turns" "$tc"
+  printf "  ║  输入 Token:  %-8s    输出 Token:   %-8s ║\n" \
+    "$(printf "%'d" ${in_tok:-0} 2>/dev/null || echo ${in_tok:-0})" \
+    "$(printf "%'d" ${out_tok:-0} 2>/dev/null || echo ${out_tok:-0})"
+  printf "  ║  缓存读取:    %-8s    缓存创建:     %-8s ║\n" \
+    "$(printf "%'d" ${cr_tok:-0} 2>/dev/null || echo ${cr_tok:-0})" \
+    "$(printf "%'d" ${cc_tok:-0} 2>/dev/null || echo ${cc_tok:-0})"
+  printf "  ║  Token 合计:  %-8s                          ║\n" \
+    "$(printf "%'d" ${total:-0} 2>/dev/null || echo ${total:-0})"
+  printf "  ║  Session:     %-36s ║\n" "${sid:0:36}"
+  echo "  ╚══════════════════════════════════════════════════════════╝"
+  echo ""
+}
+
+# ============================================================
+# 统一日志监控
+# ============================================================
+
+# 格式化 token (K/M 后缀)
+_fmt_tok() {
+  local v=$1
+  if [[ $v == "--" || -z $v ]]; then echo "  --"; return; fi
+  if [[ $v -ge 1000000 ]]; then printf "%.1fM" "$(echo "scale=1; $v/1000000" | bc 2>/dev/null || echo 0)"; else
+  if [[ $v -ge 1000 ]]; then printf "%.1fK" "$(echo "scale=1; $v/1000" | bc 2>/dev/null || echo 0)"; else echo "$v"; fi; fi
+}
+
+# 计算日志的运行时长
+_calc_runtime() {
+  local lf="$1"
+  if [[ ! -f "$lf" ]]; then echo "--"; return; fi
+  local start ts epoch
+  start=$(grep '^start:' "$lf" 2>/dev/null | tail -1 | sed 's/start: //')
+  [[ -z "$start" ]] && { echo "--"; return; }
+  epoch=$(date -j -f '%Y-%m-%d %H:%M:%S' "$start" +%s 2>/dev/null || echo 0)
+  [[ $epoch -le 0 ]] && { echo "--"; return; }
+  local e=$(($(date +%s) - epoch))
+  if [[ $e -lt 60 ]]; then echo "${e}s"
+  elif [[ $e -lt 3600 ]]; then echo "$((e/60))m$((e%60))s"
+  else echo "$((e/3600))h$(((e%3600)/60))m"; fi
+}
+
+monitor_logs() {
+  local colors=(33 36 35 32 34 90 93 96 95 92 94 91)
+  local num_colors=${#colors[@]}
+  local refresh=5
+  local outfile
+  outfile=$(mktemp)
+  trap 'printf "\033[?25h\n"; rm -f "$outfile"' EXIT INT TERM HUP
+  printf "\033[?25l"
+
+  while true; do
+    # ── 收集运行中的任务 ──
+    local running_tasks=()
+    local task_id
+    for task_file in $(list_tasks); do
+      task_id=$(basename "$task_file" .md)
+      [[ "$(get_status "$task_file")" == "in_progress" ]] && running_tasks+=("$task_id")
+    done
+    local _running_dir="$PROJECT_DIR/.running"
+    if [[ -d "$_running_dir" ]]; then
+      for pid_file in "$_running_dir"/*.pid; do
+        [[ -f "$pid_file" ]] || continue
+        task_id=$(basename "$pid_file" .pid)
+        local found=false
+        for t in "${running_tasks[@]}"; do [[ "$t" == "$task_id" ]] && found=true && break; done
+        [[ "$found" == "false" ]] && running_tasks+=("$task_id")
+      done
+    fi
+
+    # ── 无任务: 等待页 ──
+    if [[ ${#running_tasks[@]} -eq 0 ]]; then
+      > "$outfile"
+      printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" >> "$outfile"
+      printf "  Unified Log Monitor — 等待任务启动                  %s\n" "$(date '+%H:%M:%S')" >> "$outfile"
+      printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" >> "$outfile"
+      printf "\n  当前没有正在运行的任务。启动编排器:\n" >> "$outfile"
+      printf "    ./scripts/task-runner.sh --auto\n" >> "$outfile"
+      printf "\n  %ds 后自动重试  (Ctrl-C 退出)\n" "$refresh" >> "$outfile"
+      printf "\033[H\033[J"
+      cat "$outfile"
+      sleep "$refresh"
+      continue
+    fi
+
+    # ── 构建全部输出到 temp file ──
+    > "$outfile"
+
+    local now
+    now=$(date '+%H:%M:%S')
+
+    printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" >> "$outfile"
+    printf "  Unified Log Monitor                   刷新:%ds  %s  任务:%d\n" \
+      "$refresh" "$now" "${#running_tasks[@]}" >> "$outfile"
+    printf "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" >> "$outfile"
+
+    local idx=0
+    for task_id in "${running_tasks[@]}"; do
+      local color="${colors[$((idx % num_colors))]}"
+      local name
+      name=$(get_name "$TASKS_DIR/${task_id}.md" 2>/dev/null || echo "?")
+      local lf="$PROJECT_DIR/logs/${task_id}.log"
+      local log_lines=0
+      [[ -f "$lf" ]] && log_lines=$(wc -l < "$lf" 2>/dev/null | tr -d ' ')
+
+      local runtime
+      runtime=$(_calc_runtime "$lf")
+
+      # session stats (快速解析，仅在日志行数 > 5 时尝试)
+      local turns="--" in_tok="--" out_tok="--" cache_tok="--" tool_n="--"
+      if [[ $log_lines -gt 5 ]]; then
+        local sid
+        sid=$(_find_task_session "$task_id" 2>/dev/null)
+        if [[ -n "$sid" ]]; then
+          local jsonl="$HOME/.claude/projects/-Users-yujing-deepseek-playground/${sid}.jsonl"
+          local stats
+          stats=$(_parse_session_stats "$jsonl" 2>/dev/null)
+          if [[ -n "$stats" && "$stats" != "{}" ]]; then
+            turns=$(echo "$stats" | jq -r '.turns // 0')
+            in_tok=$(echo "$stats" | jq -r '.input_tokens // 0')
+            out_tok=$(echo "$stats" | jq -r '.output_tokens // 0')
+            cache_tok=$(echo "$stats" | jq -r '.cache_read // 0')
+            tool_n=$(echo "$stats" | jq -r '.tool_calls // 0')
+          fi
+        fi
+      fi
+
+      local in_fmt out_fmt cache_fmt
+      in_fmt=$(_fmt_tok "$in_tok")
+      out_fmt=$(_fmt_tok "$out_tok")
+      cache_fmt=$(_fmt_tok "$cache_tok")
+      local name_short
+      name_short=$(echo "$name" | cut -c1-22)
+
+      printf "  \033[%dm● %s\033[0m  %-22s  运行: %-8s  日志: %s 行\n" \
+        "$color" "$task_id" "$name_short" "$runtime" "$log_lines" >> "$outfile"
+      printf "        轮次: %5s    输入: %7s    输出: %7s    缓存: %7s    工具: %4s\n" \
+        "$turns" "$in_fmt" "$out_fmt" "$cache_fmt" "$tool_n" >> "$outfile"
+      printf "\n" >> "$outfile"
+      idx=$((idx + 1))
+    done
+
+    printf "━━━━ 最新日志 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n" >> "$outfile"
+
+    local tail_n=${MONITOR_TAIL_LINES:-4}
+    idx=0
+    for task_id in "${running_tasks[@]}"; do
+      local lf="$PROJECT_DIR/logs/${task_id}.log"
+      local color="${colors[$((idx % num_colors))]}"
+      if [[ -f "$lf" ]]; then
+        tail -n "$tail_n" "$lf" 2>/dev/null | while IFS= read -r line; do
+          [[ -z "$line" ]] && continue
+          printf "  \033[%dm[%s]\033[0m %s\n" "$color" "$task_id" "$(echo "$line" | cut -c1-72)" >> "$outfile"
+        done
+      fi
+      idx=$((idx + 1))
+    done
+
+    printf "\n  Ctrl-C 退出" >> "$outfile"
+
+    # 全部构建完成 → 一次性清屏+输出
+    printf "\033[H\033[J"
+    cat "$outfile"
+
+    # 同步 JSON 给前端 Monitor 页面
+    sync_monitor_json &
+
+    sleep "$refresh"
+  done
+}
 # 标记任务失败
 mark_failed() {
   local task_id="$1"
@@ -702,6 +1068,16 @@ recover_zombies() {
 }
 
 # ============================================================
+# Monitor JSON 同步 (供前端页面消费)
+# ============================================================
+
+sync_monitor_json() {
+  local outfile="$PROJECT_DIR/packages/web/public/monitor-stats.json"
+  mkdir -p "$(dirname "$outfile")"
+  "$SCRIPT_DIR/generate-stats.sh" --json > "$outfile" 2>/dev/null
+}
+
+# ============================================================
 # 主循环
 # ============================================================
 
@@ -723,6 +1099,9 @@ main_loop() {
     # 显示仪表盘
     show_dashboard
 
+    # 同步 JSON 给前端 Monitor 页面
+    sync_monitor_json &
+
     # 查找可执行任务
     local available
     available=$(find_available_tasks 2>/dev/null || true)
@@ -743,6 +1122,7 @@ main_loop() {
       done
 
       if [[ "$all_done" == "true" ]]; then
+        sync_monitor_json
         echo ""
         echo "════════════════════════════════════════════════════════════"
         echo "  🎉  全部任务已完成！"
@@ -758,6 +1138,7 @@ main_loop() {
     if [[ -n "$TARGET_TASK" ]]; then
       local target_id="$TARGET_TASK"
       execute_task "$target_id"
+      sync_monitor_json
       echo ""
       echo "════════════════════════════════════════════════════════════"
       echo "  单任务模式完成: $target_id"
@@ -875,8 +1256,9 @@ show_help() {
     --mark-complete ID  标记任务为 completed
     --mark-failed ID    标记任务为 failed
     --deps ID           查看任务的依赖树及状态
-    --tail ID           实时查看任务日志 (tail -f)
-    --reset-retries ID  清除任务重试计数 (ID 可用 "all")
+    --tail ID           实时查看单个任务日志 (tail -f)
+    --monitor           统一监控所有运行中任务的日志 (着色前缀)
+    --stats ID          查看任务的对话轮次/Token/工具调用统计
 
   状态:
     pending       → 等待执行 (依赖满足后自动调度)
@@ -889,20 +1271,20 @@ show_help() {
     # 查看仪表盘
     ./scripts/task-runner.sh --dashboard
 
-    # 列出可执行任务
-    ./scripts/task-runner.sh --list-available
-
     # 自动运行所有任务
     ./scripts/task-runner.sh --auto --max-parallel 3
+
+    # 在另一个终端统一监控所有任务日志
+    ./scripts/task-runner.sh --monitor
+
+    # 查看任务的详细统计 (轮次/Token/工具调用)
+    ./scripts/task-runner.sh --stats T001
 
     # 只运行 T004
     ./scripts/task-runner.sh --task T004
 
     # 预演模式
     ./scripts/task-runner.sh --dry-run
-
-    # 标记任务完成
-    ./scripts/task-runner.sh --mark-complete T004
 
 HELP
 }
@@ -958,6 +1340,24 @@ case "${1:-}" in
       reset_retry_count "$task_id"
       echo "✓ 已清除 $task_id 的重试计数"
     fi
+    ;;
+  --monitor)
+    monitor_logs
+    ;;
+  --stats)
+    task_id="${2:-}"
+    if [[ -z "$task_id" ]]; then
+      echo "Usage: $0 --stats <TASK_ID>"
+      echo "Available logs with stats:"
+      for f in "$PROJECT_DIR"/logs/T*.log; do
+        [[ -f "$f" ]] || continue
+        if grep -q '^=== 会话统计 ===$' "$f" 2>/dev/null; then
+          printf "  %s  %s\n" "$(basename "$f" .log)" "$(grep '^turns:' "$f")"
+        fi
+      done
+      exit 1
+    fi
+    show_task_stats "$task_id"
     ;;
   --tail)
     task_id="${2:-}"

@@ -21,6 +21,7 @@ export interface MomentItem {
 
 export interface MomentLike {
   id: string;
+  momentId: string;
   userId: string;
   user: {
     id: string;
@@ -31,6 +32,7 @@ export interface MomentLike {
 
 export interface MomentComment {
   id: string;
+  momentId: string;
   userId: string;
   content: string;
   replyToId: string | null;

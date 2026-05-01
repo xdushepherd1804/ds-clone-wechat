@@ -17,6 +17,7 @@
 #   group                — Group chat service (port 3004)
 #   file                 — File upload service (port 3005)
 #   moments              — Moments/timeline service (port 3006)
+#   search               — Search service (port 3008)
 #   api-gateway          — API + WebSocket gateway (port 3000)
 #   web                  — React SPA + reverse proxy (nginx on port 8080)
 # =============================================================================
@@ -104,8 +105,11 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-wechat}:${MONGO_INITDB_ROOT_PASSWORD:-wechat_dev}@mongo:27017/wechat?authSource=admin
+      REDIS_URL: redis://redis:6379
     depends_on:
       mongo:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 
@@ -161,6 +165,40 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  search:
+    build:
+      context: .
+      target: search
+    container_name: wc-search
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-wechat}:${MONGO_INITDB_ROOT_PASSWORD:-wechat_dev}@mongo:27017/wechat?authSource=admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  redpacket:
+    build:
+      context: .
+      target: redpacket
+    container_name: wc-redpacket
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   api-gateway:
     build:
       context: .
@@ -177,6 +215,8 @@ services:
       GROUP_HOST: group
       FILE_HOST: file
       MOMENTS_HOST: moments
+      SEARCH_HOST: search
+      REDPACKET_HOST: redpacket
     depends_on:
       - auth
       - message
@@ -184,6 +224,8 @@ services:
       - group
       - file
       - moments
+      - search
+      - redpacket
     restart: unless-stopped
 
   web:

@@ -88,6 +88,19 @@ export const RedisKeys = {
   rateLimit: (action: string, identifier: string, window: string) =>
     `${PREFIX}:rate:${action}:${identifier}:${window}`,
 
+  // ─── Red Packet ──────────────────────────────────────────────────────────────
+  // 用途: 红包剩余金额和个数缓存，避免高频查库
+  // 类型: HASH { remainingCount, remainingAmount, status }
+
+  /** 红包缓存 — rp:{packetId} */
+  redPacket: (packetId: string) => `${PREFIX}:rp:${packetId}`,
+
+  /** 红包用户已领取集合 — rp:opened:{packetId} */
+  redPacketOpened: (packetId: string) => `${PREFIX}:rp:opened:${packetId}`,
+
+  /** 红包缓存 TTL (秒) — 25h, 比过期时间多 1h */
+  RED_PACKET_TTL: 25 * 3600,
+
   // ─── Distributed Lock ──────────────────────────────────────────────────────
   // 用途: 分布式锁 (如创建群聊时防止并发重复)
   // 类型: STRING (NX + EX)
@@ -107,6 +120,7 @@ export const RedisKeyPatterns = {
   userProfile: `${PREFIX}:user:profile:*`,
   recentContacts: `${PREFIX}:user:recent:*`,
   offlineMessages: `${PREFIX}:user:offline:*`,
+  redPacket: `${PREFIX}:rp:*`,
   rateLimit: `${PREFIX}:rate:*`,
   lock: `${PREFIX}:lock:*`,
 };

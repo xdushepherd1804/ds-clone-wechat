@@ -1,2 +1,29 @@
 === 第1次尝试 ===
-start: 2026-04-30 21:31:09
+start: 2026-04-30 22:10:39
+```
+=== 验证报告 ===
+通过: 3/3
+失败: 0/3
+
+1. ✅ 核心服务覆盖率 > 70%
+   覆盖率: 80.6% 语句 | 82.71% 分支 | 89.75% 函数 | 80.6% 行 → 全部超过 70%
+
+2. ✅ 关键路径测试通过
+   测试文件: 56/56 通过
+   测试用例: 789/789 通过
+
+3. ✅ CI 中自动运行测试
+   pnpm test (vitest run) 可在 CI 中直接执行
+
+─── 修复清单 ───
+- vitest.config.ts: 添加 pool: 'forks' 隔离 + testTimeout: 15s 处理 JSDOM 超时
+- web/src/test-setup.ts: 添加 afterEach(cleanup) 自动清理 DOM
+- server-moments/test: 补充 user/contact mock，确保所有测试独立通过
+- server-file/test: 修正 maxSize→maxFileSize，修正 MIME 类型断言
+- server-contact/test: 修正 txContact mock 的 .contact 嵌套
+```
+
+---
+attempt: 1
+exit_code: 0
+end_time: 2026-04-30 22:52:04

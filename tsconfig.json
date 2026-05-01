@@ -9,6 +9,9 @@
     { "path": "packages/server-group" },
     { "path": "packages/server-file" },
     { "path": "packages/server-moments" },
+    { "path": "packages/server-push" },
+    { "path": "packages/server-redpacket" },
+    { "path": "packages/server-qrcode" },
     { "path": "packages/web" }
   ]
 }

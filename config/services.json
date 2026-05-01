@@ -34,6 +34,26 @@
       "host": "localhost",
       "port": 3006,
       "healthCheck": "/health"
+    },
+    "push": {
+      "host": "localhost",
+      "port": 3007,
+      "healthCheck": "/health"
+    },
+    "search": {
+      "host": "localhost",
+      "port": 3008,
+      "healthCheck": "/health"
+    },
+    "redpacket": {
+      "host": "localhost",
+      "port": 3009,
+      "healthCheck": "/health"
+    },
+    "qrcode": {
+      "host": "localhost",
+      "port": 3010,
+      "healthCheck": "/health"
     }
   }
 }

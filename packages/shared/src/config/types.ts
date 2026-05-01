@@ -33,6 +33,10 @@ export interface ServicesConfig {
   group: ServiceEndpoint;
   file: ServiceEndpoint;
   moments: ServiceEndpoint;
+  push: ServiceEndpoint;
+  search: ServiceEndpoint;
+  redpacket: ServiceEndpoint;
+  qrcode: ServiceEndpoint;
 }
 
 export interface DatabaseConfig {
