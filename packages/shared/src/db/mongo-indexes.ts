@@ -56,10 +56,6 @@ export const messageBoxIndexes = [
 //   npx tsx src/db/mongo-indexes.ts
 //
 // 生产环境建议通过迁移工具或 CI/CD 管理索引。
-
-if (require.main === module) {
-  void (async () => {
-    // 仅导出定义，实际创建需连接 MongoDB 客户端
-    console.log(JSON.stringify({ messageIndexes, messageBoxIndexes }, null, 2));
-  })();
-}
+//
+// NOTE: 移除了 require.main === module 检查，因为 require 在浏览器 ESM 环境中不可用。
+// 如需打印索引定义，请使用独立脚本导入后调用。

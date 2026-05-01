@@ -3,9 +3,9 @@
  */
 
 // ─── DB ────────────────────────────────────────────────────────────────────
-
-export { RedisKeys, RedisKeyPatterns } from './db/redis-keys';
-export { messageIndexes, messageBoxIndexes } from './db/mongo-indexes';
+// NOTE: DB modules (redis-keys, mongo-indexes) are Node.js-only and NOT
+// re-exported here to keep this barrel browser-safe. Server code should
+// import directly from '@wechat-clone/shared/db/redis-keys' etc.
 
 // ─── Config ─────────────────────────────────────────────────────────────────
 // NOTE: Config module is Node.js-only (uses fs, path, yaml) and is NOT re-exported
