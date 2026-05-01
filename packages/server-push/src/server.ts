@@ -4,7 +4,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { Redis } from 'ioredis';
 import { PrismaClient } from '@prisma/client';
-import { loadConfig, ErrorCode } from '@wechat-clone/shared';
+import { loadConfig } from '@wechat-clone/shared/config';
+import { ErrorCode } from '@wechat-clone/shared';
 import { createPushService, PushError } from './push.service';
 import { createDeviceService, DeviceError } from './device.service';
 import { MockProvider, FCMProvider, APNsProvider } from './providers';

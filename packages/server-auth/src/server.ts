@@ -1,7 +1,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { PrismaClient } from '@prisma/client';
 import { Redis } from 'ioredis';
-import { loadConfig, ErrorCode } from '@wechat-clone/shared';
+import { ErrorCode } from '@wechat-clone/shared';
+import { loadConfig } from '@wechat-clone/shared/config';
 import { createAuthService, AuthError } from './auth.service';
 import { createAuthMiddleware, extractTokenFromHeader } from './middleware';
 import {

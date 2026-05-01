@@ -4,7 +4,8 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { PrismaClient } from '@prisma/client';
 import { MongoClient } from 'mongodb';
-import { loadConfig, ErrorCode } from '@wechat-clone/shared';
+import { loadConfig } from '@wechat-clone/shared/config';
+import { ErrorCode } from '@wechat-clone/shared';
 import { createSearchService, SearchError } from './search.service';
 
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';

@@ -8,8 +8,9 @@ export { RedisKeys, RedisKeyPatterns } from './db/redis-keys';
 export { messageIndexes, messageBoxIndexes } from './db/mongo-indexes';
 
 // ─── Config ─────────────────────────────────────────────────────────────────
-
-export { loadConfig, loadServiceRegistry, sanitizeConfig, ConfigError } from './config';
+// NOTE: Config module is Node.js-only (uses fs, path, yaml) and is NOT re-exported
+// here to keep this barrel browser-safe. Server code should import from:
+//   import { loadConfig } from '@wechat-clone/shared/config';
 export type {
   AppConfig,
   AppSettings,

@@ -2,7 +2,7 @@
  * Docker entry point for the moments service.
  */
 import { createServer } from 'node:http';
-import { loadConfig } from '@wechat-clone/shared';
+import { loadConfig } from '@wechat-clone/shared/config';
 
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';
 const config = loadConfig(CONFIG_DIR);

@@ -33,3 +33,4 @@ coverage/
 
 # claude (keep settings, exclude committing state)
 .claude/committing
+.playwright-mcp/

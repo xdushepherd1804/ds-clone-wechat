@@ -3,7 +3,8 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { PrismaClient } from '@prisma/client';
-import { loadConfig, ErrorCode } from '@wechat-clone/shared';
+import { loadConfig } from '@wechat-clone/shared/config';
+import { ErrorCode } from '@wechat-clone/shared';
 import type { GroupRole } from '@wechat-clone/shared';
 import { createGroupService, GroupError } from './group.service';
 

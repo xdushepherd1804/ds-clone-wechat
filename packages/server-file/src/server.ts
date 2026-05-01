@@ -3,7 +3,8 @@
  */
 import { createServer } from 'node:http';
 import type { IncomingMessage, ServerResponse } from 'node:http';
-import { loadConfig, ErrorCode } from '@wechat-clone/shared';
+import { ErrorCode } from '@wechat-clone/shared';
+import { loadConfig } from '@wechat-clone/shared/config';
 import { createFileService, FileError } from './file.service';
 import type { FileMetadata } from './file.service';
 

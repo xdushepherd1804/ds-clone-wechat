@@ -3,7 +3,8 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import QRCode from 'qrcode';
-import { loadConfig, ErrorCode } from '@wechat-clone/shared';
+import { loadConfig } from '@wechat-clone/shared/config';
+import { ErrorCode } from '@wechat-clone/shared';
 import type { QrCodePayload } from '@wechat-clone/shared';
 import { createQrCodeService, QrCodeError } from './qrcode.service';
 

@@ -6,7 +6,8 @@
  */
 import { createServer, request, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { Socket } from 'node:net';
-import { loadConfig, loadServiceRegistry, ErrorCode, ErrorMessage } from '@wechat-clone/shared';
+import { loadConfig, loadServiceRegistry } from '@wechat-clone/shared/config';
+import { ErrorCode, ErrorMessage } from '@wechat-clone/shared';
 import { verifyJwt, extractTokenFromHeader, JwtError } from './jwt-verify';
 import { createRateLimiter } from './rate-limiter';
 import { createLogger } from './logger';

@@ -5,7 +5,8 @@ import { createServer, request, type IncomingMessage, type ServerResponse } from
 import { PrismaClient } from '@prisma/client';
 import { MongoClient } from 'mongodb';
 import { Redis } from 'ioredis';
-import { loadConfig, ErrorCode } from '@wechat-clone/shared';
+import { loadConfig } from '@wechat-clone/shared/config';
+import { ErrorCode } from '@wechat-clone/shared';
 import { createMessageService, MessageError } from './message.service';
 
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';
