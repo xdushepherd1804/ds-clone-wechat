@@ -1,7 +1,8 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Collection, Db, Filter, Sort } from 'mongodb';
 import type { Redis } from 'ioredis';
-import { ErrorCode, isValidMsgContent, generateId, RedisKeys } from '@wechat-clone/shared';
+import { ErrorCode, isValidMsgContent, generateId } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 import type { Message, Conversation, MsgStatus, ChatType, MsgType } from '@wechat-clone/shared';
 
 // ─── Types ─────────────────────────────────────────────────────────────────

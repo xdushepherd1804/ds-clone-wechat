@@ -192,7 +192,7 @@ export function MomentsPage() {
               刷新
             </Typography.Text>
           </div>
-          {moments.map((moment) => (
+          {moments.filter(Boolean).map((moment) => (
             <MomentCard
               key={moment.id}
               moment={moment}

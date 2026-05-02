@@ -1,30 +1,62 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { List, Typography, Input, Spin, Badge, Empty, Alert, Avatar } from 'antd';
 import { MessageOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
-import { getConversations, getContacts } from '@/api';
-import type { Conversation, ContactItem } from '@/types';
+import { getConversations, getContacts, getGroups } from '@/api';
+import type { Conversation, ContactItem, GroupInfo } from '@/types';
 import { ChatType } from '@/types';
 
 const { Title } = Typography;
+
+function useNameMap(contacts: ContactItem[], groups: GroupInfo[]) {
+  return useMemo(() => {
+    const map = new Map<string, { name: string; avatar: string | null }>();
+    for (const c of contacts) {
+      map.set(c.contactId, {
+        name: c.remark || c.contact.nickname || c.contact.username,
+        avatar: c.contact.avatar,
+      });
+    }
+    for (const g of groups) {
+      map.set(g.id, { name: g.name, avatar: g.avatar });
+    }
+    return map;
+  }, [contacts, groups]);
+}
+
+function getConvName(conv: Conversation, nameMap: Map<string, { name: string; avatar: string | null }>) {
+  const info = nameMap.get(conv.targetId);
+  if (info) return info.name;
+  return conv.chatType === ChatType.GROUP ? `Group ${conv.targetId}` : conv.targetId;
+}
+
+function getConvAvatar(conv: Conversation, nameMap: Map<string, { name: string; avatar: string | null }>) {
+  const info = nameMap.get(conv.targetId);
+  return info?.avatar ?? null;
+}
 
 export function ChatPage() {
   const navigate = useNavigate();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [contacts, setContacts] = useState<ContactItem[]>([]);
+  const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
 
+  const nameMap = useNameMap(contacts, groups);
+
   useEffect(() => {
     async function load() {
       try {
-        const [convs, conts] = await Promise.all([
+        const results = await Promise.allSettled([
           getConversations(),
           getContacts(),
+          getGroups(),
         ]);
-        setConversations(convs);
-        setContacts(conts);
+        setConversations(results[0].status === 'fulfilled' ? results[0].value : []);
+        setContacts(results[1].status === 'fulfilled' ? results[1].value : []);
+        setGroups(results[2].status === 'fulfilled' ? results[2].value : []);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : 'Failed to load conversations';
         setError(msg);
@@ -59,9 +91,7 @@ export function ChatPage() {
 
   const filterConv = (conv: Conversation) => {
     if (!search) return true;
-    const name = conv.chatType === ChatType.GROUP
-      ? `Group ${conv.targetId}`
-      : conv.targetId;
+    const name = getConvName(conv, nameMap);
     const lastMsgText = conv.lastMsg?.content ?? '';
     return name.toLowerCase().includes(search.toLowerCase()) ||
       lastMsgText.toLowerCase().includes(search.toLowerCase());
@@ -114,7 +144,8 @@ export function ChatPage() {
             dataSource={filteredConvs}
             renderItem={(item) => {
               const isGroup = item.chatType === ChatType.GROUP;
-              const name = isGroup ? `Group ${item.targetId}` : item.targetId;
+              const name = getConvName(item, nameMap);
+              const avatar = getConvAvatar(item, nameMap);
               return (
                 <List.Item
                   onClick={() => handleClick(item)}
@@ -123,7 +154,7 @@ export function ChatPage() {
                   <List.Item.Meta
                     avatar={
                       <Badge count={item.unreadCount} size="small" offset={[-2, 4]}>
-                        <Avatar icon={isGroup ? <TeamOutlined /> : <UserOutlined />} />
+                        <Avatar src={avatar} icon={isGroup ? <TeamOutlined /> : <UserOutlined />} />
                       </Badge>
                     }
                     title={name}

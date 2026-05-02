@@ -6,9 +6,10 @@ import type { Message, WSNewMsgBody } from '@/types';
 import { MsgType, MsgStatus, ChatType } from '@/types';
 
 const PAGE_SIZE = 30;
+const EMPTY_MSGS: Message[] = [];
 
 export function useMessages(conversationId: string) {
-  const messages = useChatStore((s) => s.messages[conversationId] || []);
+  const messages = useChatStore((s) => s.messages[conversationId]) ?? EMPTY_MSGS;
   const hasMore = useChatStore((s) => s.hasMore[conversationId] ?? true);
   const loadingMore = useChatStore((s) => s.loadingMore);
   const userId = useUserStore((s) => s.user?.id);

@@ -140,7 +140,9 @@ const server = createServer((req, res) => {
     }
 
     const url = req.url ?? '/';
-    const pathname = new URL(url, 'http://localhost').pathname;
+    const parsedUrl = new URL(url, 'http://localhost');
+    const pathname = parsedUrl.pathname;
+    const search = parsedUrl.search;
 
     // Health check
     if (pathname === '/health') {
@@ -211,7 +213,8 @@ const server = createServer((req, res) => {
     // 6. Proxy to matched service
     if (matchedRoute) {
       const prefixNoSlash = matchedRoute.prefix.replace(/\/$/, '');
-      const servicePath = pathname === prefixNoSlash ? '/' : pathname.slice(matchedRoute.prefix.length - 1);
+      const basePath = pathname === prefixNoSlash ? '/' : pathname.slice(matchedRoute.prefix.length - 1);
+      const servicePath = search ? basePath + search : basePath;
       const target = services[matchedRoute.service];
       if (target) {
         proxyRequest(req, res, target, servicePath);

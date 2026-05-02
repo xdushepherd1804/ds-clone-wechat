@@ -1,5 +1,5 @@
 import type { Redis } from 'ioredis';
-import { RedisKeys } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 import type { JwtPayload } from './jwt';
 
 export interface SessionData {

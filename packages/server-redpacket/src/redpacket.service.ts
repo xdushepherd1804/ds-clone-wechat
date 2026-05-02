@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
-import { ErrorCode, RedisKeys } from '@wechat-clone/shared';
+import { ErrorCode } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 import type {
   RedPacketInfo,
   RedPacketDetail,

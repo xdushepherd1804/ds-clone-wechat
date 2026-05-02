@@ -338,6 +338,7 @@ const server = createServer(async (req, res) => {
       }
     }
   } catch (err) {
+    console.error('[auth] request error:', err);
     sendError(res, err);
   }
 });

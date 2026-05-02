@@ -128,29 +128,45 @@ function matchRoute(method: string, url: string): MatchedRoute | null {
     return { handler: 'health' };
   }
 
-  if (method === 'POST' && (path === '/api/messages/send' || path === '/messages/send' || path === '/send')) {
+  // POST /api/messages or /messages or / — frontend send message (gateway strips prefix)
+  if (method === 'POST' && (path === '/api/messages/send' || path === '/messages/send' || path === '/send' || path === '/api/messages' || path === '/messages' || path === '/')) {
     return { handler: 'sendMessage' };
   }
 
+  // GET /api/messages/history — history by query param
   if (method === 'GET' && (path === '/api/messages/history' || path === '/messages/history' || path === '/history')) {
     return { handler: 'getMessages' };
   }
 
+  // GET /api/messages/conversations
   if (method === 'GET' && (path === '/api/messages/conversations' || path === '/messages/conversations' || path === '/conversations')) {
     return { handler: 'getConversations' };
   }
 
+  // GET /api/messages/offline
   if (method === 'GET' && (path === '/api/messages/offline' || path === '/messages/offline' || path === '/offline')) {
     return { handler: 'getOfflineMessages' };
   }
 
-  // PUT /api/messages/read/:conv_id
+  // POST /api/messages/:convId/read — frontend mark read
+  const readPathMatch = path.match(/^\/(?:api\/)?(?:messages\/)?([a-zA-Z0-9_-]+)\/read$/);
+  if ((method === 'POST' || method === 'PUT') && readPathMatch) {
+    return { handler: 'markRead', params: { convId: readPathMatch[1] } };
+  }
+
+  // PUT /api/messages/read/:convId
   const readMatch = path.match(/^\/(?:api\/)?(?:messages\/)?read\/([a-zA-Z0-9_:.-]+)$/);
   if (method === 'PUT' && readMatch) {
     return { handler: 'markRead', params: { convId: readMatch[1] } };
   }
 
-  // DELETE /api/messages/:msg_id
+  // GET /api/messages/:convId — frontend fetch messages (must be after health/history/conversations/offline)
+  const getMsgsMatch = path.match(/^\/(?:api\/)?(?:messages\/)?([a-zA-Z0-9_-]+)$/);
+  if (method === 'GET' && getMsgsMatch) {
+    return { handler: 'getMessages', params: { convId: getMsgsMatch[1] } };
+  }
+
+  // DELETE /api/messages/:msgId
   const deleteMatch = path.match(/^\/(?:api\/)?(?:messages\/)?([a-zA-Z0-9_-]+)$/);
   if (method === 'DELETE' && deleteMatch) {
     return { handler: 'recallMessage', params: { msgId: deleteMatch[1] } };
@@ -254,10 +270,15 @@ async function start() {
         case 'getMessages': {
           const userId = getUserId(req);
           const qs = getQueryParams(req.url || '');
-          const conversationId = qs.conversation_id || qs.conversationId || '';
+          let conversationId = qs.conversation_id || qs.conversationId || route.params?.convId || '';
           if (!conversationId) {
             sendJson(res, 400, { code: ErrorCode.INVALID_PARAM, message: '缺少会话ID' });
             return;
+          }
+          // If the convId is a raw user ID (UUID), build the standard conv ID
+          if (!conversationId.startsWith('conv:') && conversationId.match(/^[a-f0-9-]{36}$/)) {
+            const ids = [userId, conversationId].sort();
+            conversationId = `conv:${ids[0]}:${ids[1]}`;
           }
           const msgs = await service.getMessages(conversationId, userId, {
             before: qs.before,
@@ -287,7 +308,11 @@ async function start() {
 
         case 'markRead': {
           const userId = getUserId(req);
-          const convId = route.params!.convId;
+          let convId = route.params!.convId;
+          if (!convId.startsWith('conv:') && convId.match(/^[a-f0-9-]{36}$/)) {
+            const ids = [userId, convId].sort();
+            convId = `conv:${ids[0]}:${ids[1]}`;
+          }
           const result = await service.markConversationRead(convId, userId);
           sendJson(res, 200, { code: ErrorCode.SUCCESS, data: result as unknown as Record<string, unknown> });
           return;
@@ -302,6 +327,7 @@ async function start() {
         }
       }
     } catch (err) {
+      console.error('[message] request error:', err);
       sendError(res, err);
     }
   });

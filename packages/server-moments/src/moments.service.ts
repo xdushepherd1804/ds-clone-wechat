@@ -1,6 +1,7 @@
 import type { PrismaClient } from '@prisma/client';
 import type { Redis } from 'ioredis';
-import { ErrorCode, CONFIG, RedisKeys } from '@wechat-clone/shared';
+import { ErrorCode, CONFIG } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 import type { MomentItem, MomentLike, MomentComment } from '@wechat-clone/shared';
 
 // ─── Redis key for timeline cache ────────────────────────────────────────────

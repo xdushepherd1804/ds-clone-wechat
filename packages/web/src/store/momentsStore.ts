@@ -82,7 +82,9 @@ export const useMomentsStore = create<MomentsState>((set, get) => ({
 
   createMoment: async (data) => {
     const moment = await momentsApi.createMoment(data);
-    set((state) => ({ moments: [moment, ...state.moments] }));
+    if (moment && moment.id) {
+      set((state) => ({ moments: [moment, ...state.moments] }));
+    }
     return moment;
   },
 

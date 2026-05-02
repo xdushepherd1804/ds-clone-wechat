@@ -4,8 +4,10 @@ import { markAsRead } from '@/api';
 import { getWSClient } from '@/ws';
 import { ChatType, MsgStatus } from '@/types';
 
+const EMPTY_MSGS_READ: Message[] = [];
+
 export function useMessageRead(conversationId: string, chatType: ChatType = ChatType.PRIVATE) {
-  const messages = useChatStore((s) => s.messages[conversationId] || []);
+  const messages = useChatStore((s) => s.messages[conversationId]) ?? EMPTY_MSGS_READ;
   const updateMessage = useChatStore((s) => s.updateMessage);
   const userId = useUserStore((s) => s.user?.id);
 

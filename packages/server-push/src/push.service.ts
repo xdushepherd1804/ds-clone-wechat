@@ -1,5 +1,6 @@
 import type { Redis } from 'ioredis';
-import { ErrorCode, generateId, RedisKeys } from '@wechat-clone/shared';
+import { ErrorCode, generateId } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 

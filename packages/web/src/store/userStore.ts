@@ -34,6 +34,10 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   restoreSession: async () => {
+    if (get().isLoggedIn) {
+      set({ isLoading: false });
+      return;
+    }
     const token = getToken();
     if (!token) {
       set({ isLoading: false });

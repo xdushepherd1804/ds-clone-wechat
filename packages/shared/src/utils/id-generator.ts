@@ -2,7 +2,11 @@ let uuidCounter = 0n;
 let lastTimestamp = 0n;
 
 const EPOCH = 1700000000000n; // 2023-11-14T22:13:20.000Z — custom epoch
-const NODE_ID = BigInt(process.env.NODE_ID ? parseInt(process.env.NODE_ID, 10) % 1024 : 1);
+const NODE_ID = BigInt(
+  typeof process !== 'undefined' && process.env?.NODE_ID
+    ? parseInt(process.env.NODE_ID, 10) % 1024
+    : 1,
+);
 const COUNTER_BITS = 12n;
 const COUNTER_MASK = (1n << COUNTER_BITS) - 1n;
 
