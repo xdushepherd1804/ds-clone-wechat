@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const { mockGet, mockPost, mockPatch, mockDelete } = vi.hoisted(() => ({
+const { mockGet, mockPost, mockPut, mockDelete } = vi.hoisted(() => ({
   mockGet: vi.fn(),
   mockPost: vi.fn(),
-  mockPatch: vi.fn(),
+  mockPut: vi.fn(),
   mockDelete: vi.fn(),
 }));
 
@@ -11,18 +11,17 @@ vi.mock('./client', () => ({
   default: {
     get: mockGet,
     post: mockPost,
-    patch: mockPatch,
+    put: mockPut,
     delete: mockDelete,
   },
 }));
 
 import {
   getContacts,
-  addContact,
+  sendFriendRequest,
   updateContact,
   deleteContact,
   getFriendRequests,
-  sendFriendRequest,
   handleFriendRequest,
   searchContacts,
 } from './contact';
@@ -58,26 +57,14 @@ describe('contact API', () => {
     });
   });
 
-  describe('addContact', () => {
-    it('calls POST /contacts with data', async () => {
-      mockPost.mockResolvedValueOnce({
-        data: { data: makeContactItem({ id: 'c2', contact: { username: 'alice' } }) },
-      });
-
-      const result = await addContact({ contactId: 'u2', remark: 'Hello' });
-      expect(mockPost).toHaveBeenCalledWith('/contacts', { contactId: 'u2', remark: 'Hello' });
-      expect(result.contact.username).toBe('alice');
-    });
-  });
-
   describe('updateContact', () => {
-    it('calls PATCH /contacts/:id with data', async () => {
-      mockPatch.mockResolvedValueOnce({
+    it('calls PUT /contacts/:id with data', async () => {
+      mockPut.mockResolvedValueOnce({
         data: { data: makeContactItem({ id: 'c1', remark: 'Updated' }) },
       });
 
       const result = await updateContact('c1', { remark: 'Updated' });
-      expect(mockPatch).toHaveBeenCalledWith('/contacts/c1', { remark: 'Updated' });
+      expect(mockPut).toHaveBeenCalledWith('/contacts/c1', { remark: 'Updated' });
       expect(result.remark).toBe('Updated');
     });
   });
@@ -115,21 +102,21 @@ describe('contact API', () => {
   });
 
   describe('handleFriendRequest', () => {
-    it('calls PATCH /contacts/requests/:id with data', async () => {
-      mockPatch.mockResolvedValueOnce({ data: {} });
+    it('calls PUT /contacts/requests/:id with data', async () => {
+      mockPut.mockResolvedValueOnce({ data: {} });
       await handleFriendRequest('r1', { action: 'accept' });
-      expect(mockPatch).toHaveBeenCalledWith('/contacts/requests/r1', { action: 'accept' });
+      expect(mockPut).toHaveBeenCalledWith('/contacts/requests/r1', { action: 'accept' });
     });
   });
 
   describe('searchContacts', () => {
-    it('calls GET /contacts/search with keyword param', async () => {
-      mockGet.mockResolvedValueOnce({
-        data: { data: [{ id: 'c1', username: 'bob' }] },
+    it('calls POST /contacts/search with keyword body', async () => {
+      mockPost.mockResolvedValueOnce({
+        data: { data: [{ id: 'c1', username: 'bob', isContact: false }] },
       });
 
       const result = await searchContacts('bob');
-      expect(mockGet).toHaveBeenCalledWith('/contacts/search', { params: { keyword: 'bob' } });
+      expect(mockPost).toHaveBeenCalledWith('/contacts/search', { keyword: 'bob' });
       expect(result).toHaveLength(1);
     });
   });

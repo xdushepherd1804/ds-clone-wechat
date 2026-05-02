@@ -5,6 +5,7 @@ export {
   useFetchContacts,
   useHandleFriendRequest,
   useContactSearch,
+  useSendFriendRequest,
   useDeleteContact,
 } from './useContacts';
 export { useMessages } from './useMessages';

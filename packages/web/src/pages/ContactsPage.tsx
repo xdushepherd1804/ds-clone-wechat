@@ -8,14 +8,19 @@ import {
   Avatar,
   Typography,
   message as antMsg,
+  Button,
+  List,
 } from 'antd';
 import {
   UserOutlined,
   TeamOutlined,
   UserAddOutlined,
+  SearchOutlined,
+  PlusOutlined,
+  CheckCircleOutlined,
 } from '@ant-design/icons';
 import { useContactStore } from '@/store';
-import { useFetchContacts, useHandleFriendRequest } from '@/hooks';
+import { useFetchContacts, useHandleFriendRequest, useContactSearch, useSendFriendRequest } from '@/hooks';
 import { OnlineDot, QrCodeScanner } from '@/components';
 import { getGroups } from '@/api/group';
 import type { ContactItem, FriendRequest, GroupInfo } from '@/types';
@@ -161,10 +166,15 @@ export function ContactsPage() {
   const { contacts, friendRequests } = useContactStore();
   const { loading, refetch } = useFetchContacts();
   const { accept, reject } = useHandleFriendRequest();
+  const { results: searchResults, loading: searching, search } = useContactSearch();
+  const { send: sendRequest, loading: sending } = useSendFriendRequest();
   const [searchText, setSearchText] = useState('');
   const [groups, setGroups] = useState<GroupInfo[]>([]);
   const [groupsLoaded, setGroupsLoaded] = useState(false);
   const [showFriendRequests, setShowFriendRequests] = useState(false);
+  const [showSearchPanel, setShowSearchPanel] = useState(false);
+  const [searchKeyword, setSearchKeyword] = useState('');
+  const [sentUids, setSentUids] = useState<Set<string>>(new Set());
 
   const loadGroups = useCallback(async () => {
     if (groupsLoaded) return;
@@ -203,6 +213,124 @@ export function ContactsPage() {
     const el = document.getElementById(`contact-letter-${letter}`);
     el?.scrollIntoView({ behavior: 'smooth' });
   }, []);
+
+  const handleSearch = useCallback(
+    (value: string) => {
+      setSearchKeyword(value);
+      if (value.trim()) {
+        search(value.trim());
+      }
+    },
+    [search],
+  );
+
+  const handleSendRequest = useCallback(
+    async (uid: string) => {
+      const ok = await sendRequest(uid);
+      if (ok) {
+        antMsg.success('好友请求已发送');
+        setSentUids((prev) => new Set(prev).add(uid));
+      } else {
+        antMsg.error('发送失败');
+      }
+    },
+    [sendRequest],
+  );
+
+  const contactUids = useMemo(
+    () => new Set(contacts.map((c) => c.contactId)),
+    [contacts],
+  );
+
+  if (showSearchPanel) {
+    return (
+      <div style={{ maxWidth: 800, margin: '0 auto', padding: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 16, gap: 12 }}>
+          <button
+            onClick={() => {
+              setShowSearchPanel(false);
+              setSearchKeyword('');
+            }}
+            style={{
+              border: 'none', background: 'transparent', cursor: 'pointer',
+              fontSize: 16, padding: 0, color: '#07c160',
+            }}
+          >
+            ← 返回通讯录
+          </button>
+          <span style={{ fontSize: 16, fontWeight: 600 }}>添加好友</span>
+        </div>
+
+        <Input.Search
+          placeholder="输入用户名或昵称搜索..."
+          value={searchKeyword}
+          onChange={(e) => handleSearch(e.target.value)}
+          onSearch={handleSearch}
+          enterButton="搜索"
+          size="large"
+          loading={searching}
+          style={{ marginBottom: 16 }}
+          autoFocus
+        />
+
+        {searching ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin size="large" /></div>
+        ) : searchResults.length > 0 ? (
+          <List
+            dataSource={searchResults}
+            renderItem={(item) => (
+              <List.Item
+                style={{ padding: '12px 16px', background: '#fff', marginBottom: 1, borderRadius: 4 }}
+              >
+                <List.Item.Meta
+                  avatar={
+                    <Avatar src={item.avatar} icon={<UserOutlined />} size={40} />
+                  }
+                  title={
+                    <span>
+                      {item.nickname}
+                      <Typography.Text type="secondary" style={{ marginLeft: 8, fontSize: 13 }}>
+                        @{item.username}
+                      </Typography.Text>
+                    </span>
+                  }
+                />
+                {item.isContact || contactUids.has(item.id) ? (
+                  <Button type="text" disabled icon={<CheckCircleOutlined />}>
+                    已是好友
+                  </Button>
+                ) : sentUids.has(item.id) ? (
+                  <Button type="text" disabled>
+                    已发送请求
+                  </Button>
+                ) : (
+                  <Button
+                    type="primary"
+                    size="small"
+                    icon={<PlusOutlined />}
+                    loading={sending}
+                    onClick={() => handleSendRequest(item.id)}
+                    style={{ background: '#07c160', borderColor: '#07c160' }}
+                  >
+                    加好友
+                  </Button>
+                )}
+              </List.Item>
+            )}
+          />
+        ) : searchKeyword.trim() ? (
+          <Empty description="未找到用户" />
+        ) : (
+          <div style={{ textAlign: 'center', padding: 48, color: '#999' }}>
+            <SearchOutlined style={{ fontSize: 48, marginBottom: 16, display: 'block' }} />
+            <Typography.Text type="secondary">
+              输入对方的用户名或昵称，搜索并添加好友
+            </Typography.Text>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   if (showFriendRequests) {
     return (
@@ -298,6 +426,25 @@ export function ContactsPage() {
               {pendingCount > 0 && (
                 <Badge count={pendingCount} size="small" />
               )}
+            </div>
+
+            <div
+              onClick={() => setShowSearchPanel(true)}
+              style={{
+                padding: '14px 16px',
+                borderBottom: '1px solid #f0f0f0',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+            >
+              <PlusOutlined
+                style={{ marginRight: 10, fontSize: 18, color: '#1890ff' }}
+              />
+              <span style={{ flex: 1 }}>添加好友</span>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                用户名/昵称搜索
+              </Text>
             </div>
 
             <div
