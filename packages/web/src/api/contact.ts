@@ -16,8 +16,8 @@ export async function getContacts(): Promise<ContactItem[]> {
   return res.data.data!;
 }
 
-export async function addContact(data: AddContactRequest): Promise<ContactItem> {
-  const res = await apiClient.post<ApiResponse<ContactItem>>('/contacts', data);
+export async function sendFriendRequest(data: SendFriendRequest): Promise<FriendRequest> {
+  const res = await apiClient.post<ApiResponse<FriendRequest>>('/contacts/requests', data);
   return res.data.data!;
 }
 
@@ -25,7 +25,7 @@ export async function updateContact(
   contactId: string,
   data: UpdateContactRequest,
 ): Promise<ContactItem> {
-  const res = await apiClient.patch<ApiResponse<ContactItem>>(`/contacts/${contactId}`, data);
+  const res = await apiClient.put<ApiResponse<ContactItem>>(`/contacts/${contactId}`, data);
   return res.data.data!;
 }
 
@@ -38,23 +38,16 @@ export async function getFriendRequests(): Promise<FriendRequest[]> {
   return res.data.data!;
 }
 
-export async function sendFriendRequest(data: SendFriendRequest): Promise<FriendRequest> {
-  const res = await apiClient.post<ApiResponse<FriendRequest>>('/contacts/requests', data);
-  return res.data.data!;
-}
-
 export async function handleFriendRequest(
   requestId: string,
   data: HandleFriendRequest,
 ): Promise<void> {
-  await apiClient.patch(`/contacts/requests/${requestId}`, data);
+  await apiClient.put(`/contacts/requests/${requestId}`, data);
 }
 
 export async function searchContacts(
   keyword: string,
 ): Promise<ContactSearchResult[]> {
-  const res = await apiClient.get<ApiResponse<ContactSearchResult[]>>('/contacts/search', {
-    params: { keyword },
-  });
+  const res = await apiClient.post<ApiResponse<ContactSearchResult[]>>('/contacts/search', { keyword });
   return res.data.data!;
 }

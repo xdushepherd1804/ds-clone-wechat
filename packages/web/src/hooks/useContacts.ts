@@ -5,6 +5,7 @@ import {
   getFriendRequests,
   handleFriendRequest,
   searchContacts,
+  sendFriendRequest,
 } from '@/api/contact';
 import type { ContactItem, FriendRequest, ContactSearchResult } from '@/types';
 
@@ -112,6 +113,30 @@ export function useContactSearch() {
   }, []);
 
   return { results, loading, error, search };
+}
+
+export function useSendFriendRequest() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const send = useCallback(async (toUid: string, message?: string): Promise<boolean> => {
+    setLoading(true);
+    setError(null);
+    try {
+      await sendFriendRequest({ toUid, message });
+      return true;
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || '发送好友请求失败';
+      setError(msg);
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  return { send, loading, error };
 }
 
 export function useDeleteContact() {
