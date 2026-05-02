@@ -52,13 +52,13 @@ export function useHandleFriendRequest() {
       try {
         await handleFriendRequest(requestId, { action: 'accept' });
         updateFriendRequest(requestId, { status: 'accepted' });
-        await getContacts().then((data) => {
-          const existingIds = new Set(contacts.map((c) => c.id));
-          const newContacts = data.filter((c) => !existingIds.has(c.id));
-          newContacts.forEach((c) => addContact(c));
-        });
+        const data = await getContacts();
+        const existingIds = new Set(contacts.map((c) => c.id));
+        const newContacts = data.filter((c) => !existingIds.has(c.id));
+        newContacts.forEach((c) => addContact(c));
         return true;
-      } catch {
+      } catch (err) {
+        console.error('[acceptFriendRequest] failed:', err);
         return false;
       } finally {
         setLoading(false);
