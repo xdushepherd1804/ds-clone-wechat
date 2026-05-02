@@ -1,8 +1,9 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { List, Typography, Input, Spin, Badge, Empty, Alert, Avatar } from 'antd';
 import { MessageOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import { getConversations, getContacts, getGroups } from '@/api';
+import { useContactStore } from '@/store';
 import type { Conversation, ContactItem, GroupInfo } from '@/types';
 import { ChatType } from '@/types';
 
@@ -24,9 +25,15 @@ function useNameMap(contacts: ContactItem[], groups: GroupInfo[]) {
   }, [contacts, groups]);
 }
 
-function getConvName(conv: Conversation, nameMap: Map<string, { name: string; avatar: string | null }>) {
+function getConvName(
+  conv: Conversation,
+  nameMap: Map<string, { name: string; avatar: string | null }>,
+  storeContacts: ContactItem[],
+) {
   const info = nameMap.get(conv.targetId);
   if (info) return info.name;
+  const storeContact = storeContacts.find((c) => c.contactId === conv.targetId);
+  if (storeContact) return storeContact.remark || storeContact.contact.nickname || storeContact.contact.username;
   return conv.chatType === ChatType.GROUP ? `Group ${conv.targetId}` : conv.targetId;
 }
 
@@ -43,29 +50,31 @@ export function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const storeContacts = useContactStore((s) => s.contacts);
 
   const nameMap = useNameMap(contacts, groups);
 
-  useEffect(() => {
-    async function load() {
-      try {
-        const results = await Promise.allSettled([
-          getConversations(),
-          getContacts(),
-          getGroups(),
-        ]);
-        setConversations(results[0].status === 'fulfilled' ? results[0].value : []);
-        setContacts(results[1].status === 'fulfilled' ? results[1].value : []);
-        setGroups(results[2].status === 'fulfilled' ? results[2].value : []);
-      } catch (err: unknown) {
-        const msg = err instanceof Error ? err.message : 'Failed to load conversations';
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
+  const load = useCallback(async () => {
+    try {
+      const results = await Promise.allSettled([
+        getConversations(),
+        getContacts(),
+        getGroups(),
+      ]);
+      setConversations(results[0].status === 'fulfilled' ? results[0].value : []);
+      setContacts(results[1].status === 'fulfilled' ? results[1].value : []);
+      setGroups(results[2].status === 'fulfilled' ? results[2].value : []);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to load conversations';
+      setError(msg);
+    } finally {
+      setLoading(false);
     }
-    load();
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleClick = (conv: Conversation) => {
     if (conv.chatType === ChatType.GROUP) {
@@ -91,7 +100,7 @@ export function ChatPage() {
 
   const filterConv = (conv: Conversation) => {
     if (!search) return true;
-    const name = getConvName(conv, nameMap);
+    const name = getConvName(conv, nameMap, storeContacts);
     const lastMsgText = conv.lastMsg?.content ?? '';
     return name.toLowerCase().includes(search.toLowerCase()) ||
       lastMsgText.toLowerCase().includes(search.toLowerCase());
@@ -144,7 +153,7 @@ export function ChatPage() {
             dataSource={filteredConvs}
             renderItem={(item) => {
               const isGroup = item.chatType === ChatType.GROUP;
-              const name = getConvName(item, nameMap);
+              const name = getConvName(item, nameMap, storeContacts);
               const avatar = getConvAvatar(item, nameMap);
               return (
                 <List.Item
