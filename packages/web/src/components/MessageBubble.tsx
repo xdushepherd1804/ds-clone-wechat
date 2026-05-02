@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { Message } from '@/types';
 import { MsgType, MsgStatus } from '@/types';
-import { useUserStore, useChatStore } from '@/store';
+import { useUserStore, useChatStore, useContactStore } from '@/store';
 import { parseMessageContent, formatFileSize } from '@/utils/parseMessageContent';
 import { formatTime } from '@wechat-clone/shared';
 import {
@@ -25,6 +25,15 @@ export default function MessageBubble({ message, onRecall, onImageClick, showSen
   const isMe = message.fromUid === userId;
   const parsed = parseMessageContent(message);
   const [showMenu, setShowMenu] = useState(false);
+  const contacts = useContactStore((s) => s.contacts);
+
+  const displaySenderName = useMemo(() => {
+    if (!showSenderName || isMe) return null;
+    if (senderName) return senderName;
+    const contact = contacts.find((c) => c.contactId === message.fromUid);
+    if (contact) return contact.remark || contact.contact.nickname || contact.contact.username;
+    return null;
+  }, [showSenderName, isMe, senderName, contacts, message.fromUid]);
 
   const time = formatTime(message.createdAt);
   const canRecall =
@@ -177,7 +186,7 @@ export default function MessageBubble({ message, onRecall, onImageClick, showSen
         padding: '4px 16px',
       }}
     >
-      {showSenderName && !isMe && senderName && (
+      {displaySenderName && (
         <span
           style={{
             fontSize: 11,
@@ -186,7 +195,7 @@ export default function MessageBubble({ message, onRecall, onImageClick, showSen
             paddingLeft: 4,
           }}
         >
-          {senderName}
+          {displaySenderName}
         </span>
       )}
       <div

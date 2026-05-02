@@ -131,7 +131,7 @@ export default function MessageList({
               message={msg}
               onRecall={onRecall}
               onImageClick={onImageClick}
-              showSenderName={chatType === 'group' && msg.fromUid !== undefined}
+              showSenderName={msg.fromUid !== undefined}
               senderName={chatType === 'group' ? memberNames?.[msg.fromUid] || msg.fromUid : undefined}
             />
           </div>
