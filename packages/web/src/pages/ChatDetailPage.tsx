@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeftOutlined } from '@ant-design/icons';
 import MessageList from '@/components/MessageList';
@@ -8,13 +8,20 @@ import { useMessages } from '@/hooks/useMessages';
 import { useSendMessage } from '@/hooks/useSendMessage';
 import { useTypingIndicator } from '@/hooks/useTypingIndicator';
 import { useMessageRead } from '@/hooks/useMessageRead';
-import { useChatStore } from '@/store';
+import { useChatStore, useContactStore } from '@/store';
 import { ChatType } from '@/types';
 
 export function ChatDetailPage() {
   const { conv_id } = useParams<{ conv_id: string }>();
   const navigate = useNavigate();
   const conversationId = conv_id || '';
+  const contacts = useContactStore((s) => s.contacts);
+
+  const chatTitle = useMemo(() => {
+    const contact = contacts.find((c) => c.contactId === conversationId);
+    if (contact) return contact.remark || contact.contact.nickname || contact.contact.username;
+    return conversationId || '聊天';
+  }, [contacts, conversationId]);
 
   const draftInput = useChatStore((s) => s.draftInputs[conversationId] || '');
   const { setDraftInput, clearDraftInput } = useChatStore.getState();
@@ -100,7 +107,7 @@ export function ChatDetailPage() {
         </button>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 16, fontWeight: 600 }}>
-            {conversationId || '聊天'}
+            {chatTitle}
           </div>
           {isTyping && (
             <div style={{ fontSize: 12, color: '#07c160' }}>对方正在输入...</div>
