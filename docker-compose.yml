@@ -125,8 +125,11 @@ services:
       NODE_ENV: ${NODE_ENV:-development}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      REDIS_URL: redis://redis:6379
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     restart: unless-stopped
 

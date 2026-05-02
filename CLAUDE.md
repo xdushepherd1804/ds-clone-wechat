@@ -22,9 +22,45 @@ WeChat clone — full-stack messaging platform monorepo (pnpm workspaces).
 - `config/` — shared server configuration
 - `docker/` — nginx config for SPA routing
 
-## Hooks
-- Gateguard blocks ALL Bash/Edit/Write — state facts before every tool call
-- Auto-commit runs on session stop via `.claude/auto-commit.sh`
+## Feature Development Workflow
+
+### Starting Feature Work
+When starting a new feature or fix (user says "let's build X", "implement X", etc.):
+
+1. **Enter a worktree**: Call `EnterWorktree` with a descriptive branch name:
+   - Format: `feat/TXXX-short-description` or `fix/TXXX-short-description`
+   - Example: `EnterWorktree(name: "feat/T004-user-auth")`
+
+2. **Write feature context**: After entering the worktree, run:
+   ```
+   bash .claude/scripts/feature-context.sh \
+     --title "feat: add user authentication service" \
+     --desc "Implement JWT auth with login/register, session management" \
+     --task T004
+   ```
+   This writes `.claude/feature-context.json` which drives the PR creation on stop.
+
+3. **Do the work** inside the worktree. Make intermediate commits freely.
+
+4. **When done**: The **Stop hook** auto-commits pending changes, pushes the branch, creates a PR to main, and removes the worktree. No manual cleanup needed.
+
+### Quick Fixes (no worktree)
+- Work directly on the current branch without calling `EnterWorktree`
+- The Stop hook auto-commits but does not push or create a PR
+
+### Abandoning a Feature
+If the user decides to drop the current feature:
+```
+bash .claude/scripts/feature-context.sh \
+  --title "feat: ..." \
+  --desc "..." \
+  --status abandoned
+```
+Then call `ExitWorktree(action: "remove", discard_changes: true)`.
+
+### Hooks
+- **SessionStart**: Pulls latest `main`, writes session state
+- **Stop**: Path A (worktree + context) — commits, pushes, creates PR, cleans up worktree. Path B — auto-commit only.
 
 ## Stack
 TypeScript 5.7, React 19, pnpm 9, Vitest 3, ESLint flat config, Docker Compose dev environment
