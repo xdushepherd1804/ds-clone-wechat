@@ -314,7 +314,7 @@ export function createRedPacketService(deps: RedPacketServiceDeps) {
         userId: r.userId,
         amount: r.amount,
         createdAt: r.createdAt instanceof Date ? r.createdAt.toISOString() : r.createdAt,
-      })),
+      })) as unknown as RedPacketRecord[],
       total,
     };
   }

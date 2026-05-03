@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Create spies at the top level (before vi.mock) so they survive module reloads
+const removeTokenSpy = vi.fn();
+const getTokenSpy = vi.fn(() => null);
+const setTokenSpy = vi.fn();
+
 // Mock dependencies before importing the module under test
 vi.mock('@/utils/token', () => ({
-  getToken: vi.fn(() => null),
-  setToken: vi.fn(),
-  removeToken: vi.fn(),
+  getToken: getTokenSpy,
+  setToken: setTokenSpy,
+  removeToken: removeTokenSpy,
 }));
 
 // Mock axios
@@ -105,19 +110,18 @@ describe('response interceptor', () => {
 
     vi.resetModules();
     await import('./client');
-    const { removeToken } = await import('@/utils/token');
 
     const errorInterceptorFn = mockResInterceptor.use.mock.calls[0]?.[1];
     expect(errorInterceptorFn).toBeDefined();
 
-    const error = { response: { status: 401 } };
+    const error = { config: { headers: {} }, response: { status: 401 } };
     try {
       await errorInterceptorFn!(error);
     } catch {
-      // expected to reject
+      // expected to reject (attemptRefresh calls unmocked axios.post)
     }
 
-    expect(removeToken).toHaveBeenCalled();
+    expect(removeTokenSpy).toHaveBeenCalled();
     expect(locationMock.href).toBe('/login');
 
     Object.defineProperty(window, 'location', {

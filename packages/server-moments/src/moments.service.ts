@@ -189,7 +189,7 @@ async function fetchProfiles(
       for (let i = 0; i < uids.length; i++) {
         if (cached[i]) {
           try {
-            map.set(uids[i], JSON.parse(cached[i]));
+            map.set(uids[i], JSON.parse(cached[i]!));
           } catch {
             missed.push(uids[i]);
           }
