@@ -14,6 +14,9 @@ WeChat clone — full-stack messaging platform monorepo (pnpm workspaces).
 - `docker compose up -d` — start all services (DBs + microservices + web)
 - `docker compose up -d --build <svc>` — rebuild & restart one service
 - `docker compose logs <svc>` — view service logs
+- **After rebuild**: wait ~30s for containers to become healthy before testing (502 = not ready yet)
+- **Nginx config**: `docker/nginx/nginx.conf` is what gets deployed (`spa.conf` is unused)
+- **PostgreSQL**: `docker exec wc-postgres psql -U wechat -d wechat -c "<sql>"`
 
 ## Packages
 - `packages/web` — React frontend (antd, react-router-dom)
