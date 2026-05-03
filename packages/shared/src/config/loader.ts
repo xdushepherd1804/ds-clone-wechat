@@ -102,7 +102,7 @@ const MASK = '***';
 function resolveEnv(env?: string): string {
   if (env) return env;
   if (process.env.NODE_ENV) {
-    const valid = ['development', 'staging', 'production'];
+    const valid = ['development', 'staging', 'production', 'test'];
     if (!valid.includes(process.env.NODE_ENV)) {
       throw new ConfigError(
         `Invalid NODE_ENV "${process.env.NODE_ENV}". Expected one of: ${valid.join(', ')}`,
