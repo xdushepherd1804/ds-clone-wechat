@@ -25,6 +25,9 @@ fi
 
 DATABASE_URL="${DATABASE_URL:-postgresql://wechat:wechat_dev@postgres:5432/wechat?schema=public}"
 
+# Ensure local migrations directory exists (so --dev can persist files to host)
+mkdir -p packages/shared/prisma/migrations
+
 echo "=============================================="
 echo "  WeChat Clone — Database Migration"
 echo "=============================================="
@@ -36,6 +39,7 @@ case "$MODE" in
     echo "  → Deploying Prisma migrations..."
     docker compose run --rm \
       -e DATABASE_URL="$DATABASE_URL" \
+      -v "$(pwd)/packages/shared/prisma/migrations:/app/packages/shared/prisma/migrations" \
       auth sh -c 'cd /app/packages/shared && pnpm exec prisma migrate deploy'
     echo "  ✓ Prisma migrations deployed"
     ;;
@@ -49,6 +53,7 @@ case "$MODE" in
     echo "  → Running Prisma migration (dev)..."
     docker compose run --rm \
       -e DATABASE_URL="$DATABASE_URL" \
+      -v "$(pwd)/packages/shared/prisma/migrations:/app/packages/shared/prisma/migrations" \
       auth sh -c 'cd /app/packages/shared && pnpm exec prisma migrate dev'
     echo "  ✓ Prisma migration (dev) complete"
     ;;
