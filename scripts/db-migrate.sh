@@ -36,7 +36,7 @@ case "$MODE" in
     echo "  → Deploying Prisma migrations..."
     docker compose run --rm \
       -e DATABASE_URL="$DATABASE_URL" \
-      auth sh -c 'cd /app && pnpm exec prisma migrate deploy --schema=packages/shared/prisma/schema.prisma'
+      auth sh -c 'cd /app/packages/shared && pnpm exec prisma migrate deploy'
     echo "  ✓ Prisma migrations deployed"
     ;;
   --status|--up|--down)
