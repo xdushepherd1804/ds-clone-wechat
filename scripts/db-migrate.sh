@@ -47,6 +47,7 @@ case "$MODE" in
     echo "  → Running migration script: $MODE"
     docker compose run --rm \
       -e DATABASE_URL="$DATABASE_URL" \
+      -v "$(pwd)/scripts:/app/scripts" \
       auth npx tsx scripts/migrate.ts "$MODE"
     ;;
   *)
