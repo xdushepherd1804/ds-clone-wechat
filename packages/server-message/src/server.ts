@@ -6,7 +6,7 @@ import { PrismaClient } from '@prisma/client';
 import { MongoClient } from 'mongodb';
 import { Redis } from 'ioredis';
 import { loadConfig } from '@wechat-clone/shared/config';
-import { ErrorCode } from '@wechat-clone/shared';
+import { ErrorCode, ChatType } from '@wechat-clone/shared';
 import { createMessageService, MessageError } from './message.service';
 
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';
@@ -186,7 +186,7 @@ async function start() {
 
   // Push notification integration — notify push service when recipient is offline
   const pushHost = process.env.PUSH_HOST || 'localhost';
-  const pushPort = (config.services as Record<string, { port: number; host?: string }>).push?.port ?? 3007;
+  const pushPort = (config.services as unknown as Record<string, { port: number; host?: string }>).push?.port ?? 3007;
 
   function notifyPush(recipientId: string, senderNickname: string, content: string) {
     const body = JSON.stringify({
@@ -259,7 +259,7 @@ async function start() {
             fromUid: userId,
             toUid: body.toUid as string | undefined,
             toGroupId: body.toGroupId as string | undefined,
-            chatType: (body.chatType as string) || 'private',
+            chatType: (body.chatType as ChatType) || 'private' as ChatType,
             msgType: (typeof body.msgType === 'number' ? body.msgType : 1) as any,
             content: typeof body.content === 'string' ? body.content : JSON.stringify(body.content ?? ''),
           });

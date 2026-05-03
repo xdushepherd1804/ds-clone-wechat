@@ -7,9 +7,10 @@ import { PrismaClient } from '@prisma/client';
 import { loadConfig } from '@wechat-clone/shared/config';
 import { ErrorCode } from '@wechat-clone/shared';
 import { createPushService, PushError } from './push.service';
+import type { PushScenario, PushPriority } from './push.service';
 import { createDeviceService, DeviceError } from './device.service';
 import { MockProvider, FCMProvider, APNsProvider } from './providers';
-import type { PushProvider, DeviceInfo, PushPayload as ProviderPushPayload } from './providers';
+import type { PushProvider, DeviceInfo, DevicePlatform, PushPayload as ProviderPushPayload } from './providers';
 
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';
 const config = loadConfig(CONFIG_DIR);
@@ -318,13 +319,13 @@ async function start() {
           const body = await parseBody(req);
           const targetUids = Array.isArray(body.targetUids) ? body.targetUids as string[] : [];
           const task = await service.sendPush(targetUids, {
-            scenario: (body.scenario as string) || 'system_notice',
+            scenario: (body.scenario as PushScenario) || 'system_notice',
             title: (body.title as string) || '',
             body: (body.body as string) || '',
             senderId: body.senderId as string | undefined,
             senderName: body.senderName as string | undefined,
             data: body.data as Record<string, unknown> | undefined,
-          }, body.priority as string | undefined);
+          }, body.priority as PushPriority | undefined);
 
           // Actually deliver via providers
           const providerPayload: ProviderPushPayload = {
@@ -382,7 +383,7 @@ async function start() {
           const body = await parseBody(req);
           const device = await deviceService.registerDevice({
             userId,
-            platform: (body.platform as string) || '',
+            platform: body.platform as DevicePlatform,
             deviceToken: (body.device_token as string) || (body.deviceToken as string) || '',
           });
           sendJson(res, 201, { code: ErrorCode.SUCCESS, data: device as unknown as Record<string, unknown> });

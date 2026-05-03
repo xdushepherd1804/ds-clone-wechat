@@ -214,13 +214,18 @@ const server = createServer(async (req, res) => {
           sendJson(res, 400, { code: ErrorCode.INVALID_PARAM, message: errors[0].message, errors });
           return;
         }
-        const result = await auth.register({
+        await auth.register({
           username: body.username as string,
           password: body.password as string,
           nickname: body.nickname as string,
           phone: body.phone as string | undefined,
         });
-        sendJson(res, 201, { code: ErrorCode.SUCCESS, ...result });
+        // Auto-login after registration so the frontend receives a token
+        const loginResult = await auth.login({
+          username: body.username as string,
+          password: body.password as string,
+        });
+        sendJson(res, 201, { code: ErrorCode.SUCCESS, ...loginResult });
         return;
       }
 

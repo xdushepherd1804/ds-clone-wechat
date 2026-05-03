@@ -63,14 +63,10 @@ vi.mock('./jwt-verify', async (importOriginal) => {
   };
 });
 
-vi.mock('@wechat-clone/shared', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@wechat-clone/shared')>();
-  return {
-    ...actual,
-    loadConfig: vi.fn(() => hoisted.mockConfig),
-    loadServiceRegistry: vi.fn(() => hoisted.mockRegistry),
-  };
-});
+vi.mock('@wechat-clone/shared/config', () => ({
+  loadConfig: vi.fn(() => hoisted.mockConfig),
+  loadServiceRegistry: vi.fn(() => hoisted.mockRegistry),
+}));
 
 vi.mock('node:http', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:http')>();
@@ -213,7 +209,7 @@ describe('server-gateway HTTP server', () => {
         'content-type': 'application/json',
       }), res);
       expect(hoisted.mockRequestFn).toHaveBeenCalledTimes(1);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.hostname).toBe('auth');
       expect(callArgs.port).toBe(4001);
       expect(callArgs.path).toBe('/login');
@@ -227,7 +223,7 @@ describe('server-gateway HTTP server', () => {
         authorization: 'Bearer valid-token',
       }), res);
       expect(hoisted.mockRequestFn).toHaveBeenCalledTimes(1);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.hostname).toBe('auth');
       expect(callArgs.port).toBe(4001);
       expect(callArgs.path).toBe('/me');
@@ -240,7 +236,7 @@ describe('server-gateway HTTP server', () => {
         authorization: 'Bearer valid-token',
       }), res);
       expect(hoisted.mockRequestFn).toHaveBeenCalledTimes(1);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.hostname).toBe('message');
       expect(callArgs.port).toBe(4002);
       expect(callArgs.path).toBe('/list');
@@ -252,7 +248,7 @@ describe('server-gateway HTTP server', () => {
       hoisted.state.capturedHandler!(makeReq('GET', '/api/contacts/list', {
         authorization: 'Bearer valid-token',
       }), res);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.hostname).toBe('contact');
       expect(callArgs.port).toBe(4003);
     });
@@ -263,7 +259,7 @@ describe('server-gateway HTTP server', () => {
       hoisted.state.capturedHandler!(makeReq('GET', '/api/groups/list', {
         authorization: 'Bearer valid-token',
       }), res);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.hostname).toBe('group');
       expect(callArgs.port).toBe(4004);
     });
@@ -274,7 +270,7 @@ describe('server-gateway HTTP server', () => {
       hoisted.state.capturedHandler!(makeReq('POST', '/api/files/upload', {
         authorization: 'Bearer valid-token',
       }), res);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.hostname).toBe('file');
       expect(callArgs.port).toBe(4005);
     });
@@ -285,7 +281,7 @@ describe('server-gateway HTTP server', () => {
       hoisted.state.capturedHandler!(makeReq('GET', '/api/moments/feed', {
         authorization: 'Bearer valid-token',
       }), res);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.hostname).toBe('moments');
       expect(callArgs.port).toBe(4006);
     });
@@ -376,7 +372,7 @@ describe('server-gateway HTTP server', () => {
         authorization: 'Bearer valid-token',
       }), res);
       expect(hoisted.mockRequestFn).toHaveBeenCalledTimes(1);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.headers['x-user-id']).toBe('user-abc');
       expect(callArgs.headers['x-username']).toBe('alice');
       expect(callArgs.headers['authorization']).toBe('Bearer valid-token');
@@ -388,7 +384,7 @@ describe('server-gateway HTTP server', () => {
         'content-type': 'application/json',
       }), res);
       expect(hoisted.mockRequestFn).toHaveBeenCalledTimes(1);
-      const callArgs = hoisted.mockRequestFn.mock.calls[0][0];
+      const callArgs = (hoisted.mockRequestFn as any).mock.calls[0][0];
       expect(callArgs.hostname).toBe('auth');
     });
 

@@ -347,7 +347,7 @@ export function createMessageService(deps: MessageServiceDeps) {
     const conversations: Conversation[] = [];
     for (const r of results) {
       const convId = r._id as string;
-      let chatType: ChatType = 'private';
+      let chatType: ChatType = 'private' as ChatType;
       let targetId = '';
       try {
         const parsed = parseConversationId(convId);

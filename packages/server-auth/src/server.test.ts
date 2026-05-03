@@ -10,10 +10,9 @@ const { mockConfig, capturedHandler, capturedPort } = vi.hoisted(() => ({
   capturedPort: { value: null as number | null },
 }));
 
-vi.mock('@wechat-clone/shared', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@wechat-clone/shared')>();
-  return { ...actual, loadConfig: vi.fn(() => mockConfig) };
-});
+vi.mock('@wechat-clone/shared/config', () => ({
+  loadConfig: vi.fn(() => mockConfig),
+}));
 
 vi.mock('@prisma/client', () => ({
   PrismaClient: vi.fn(() => ({ $disconnect: vi.fn().mockResolvedValue(undefined) })),
@@ -98,7 +97,7 @@ describe('server-auth HTTP server', () => {
 
   it('returns 404 for unknown routes', () => {
     const res = makeRes();
-    capturedHandler.value!(makeReq('GET', '/unknown'), res);
+    capturedHandler.value!(makeReq('GET', '/unknown/route'), res);
     expect(res._statusCode).toBe(404);
     const body = JSON.parse(res._body);
     expect(body.code).toBeGreaterThan(0);

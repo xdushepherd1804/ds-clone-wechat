@@ -2,7 +2,7 @@ import { useEffect, useCallback } from 'react';
 import { useChatStore, useUserStore } from '@/store';
 import { markAsRead } from '@/api';
 import { getWSClient } from '@/ws';
-import { ChatType, MsgStatus } from '@/types';
+import { ChatType, Message, MsgStatus } from '@/types';
 
 const EMPTY_MSGS_READ: Message[] = [];
 

@@ -14,6 +14,9 @@ WeChat clone — full-stack messaging platform monorepo (pnpm workspaces).
 - `docker compose up -d` — start all services (DBs + microservices + web)
 - `docker compose up -d --build <svc>` — rebuild & restart one service
 - `docker compose logs <svc>` — view service logs
+- **After rebuild**: wait ~30s for containers to become healthy before testing (502 = not ready yet)
+- **Nginx config**: `docker/nginx/nginx.conf` is what gets deployed (`spa.conf` is unused)
+- **PostgreSQL**: `docker exec wc-postgres psql -U wechat -d wechat -c "<sql>"`
 
 ## Packages
 - `packages/web` — React frontend (antd, react-router-dom)
@@ -67,8 +70,21 @@ TypeScript 5.7, React 19, pnpm 9, Vitest 3, ESLint flat config, Docker Compose d
 
 ## Import Rules (shared package)
 - DB modules (redis-keys, mongo-indexes) are NOT re-exported from the barrel to keep it browser-safe
+- Config module (`@wechat-clone/shared/config`) is also NOT re-exported from the barrel
 - Server code must import directly: `import { RedisKeys } from '@wechat-clone/shared/db/redis-keys'`
+- Tests mocking `@wechat-clone/shared` do NOT intercept `@wechat-clone/shared/config` imports — mock the exact subpath
 - Shared code using `process.env` must guard with `typeof process !== 'undefined'`
+
+## Testing
+- **Root vitest config only**: `vitest.config.ts` at repo root covers all packages. Package-level vitest configs are ignored by `pnpm test`.
+- **Server test env vars**: root config must set `CONFIG_DIR=./config`, `JWT_SECRET=test-...`, `NODE_ENV=test`
+- **localStorage**: `packages/web/src/test-setup.ts` provides the jsdom localStorage shim for web tests
+- **Prisma generate** (when types break): use local CLI, not npx:
+  `node node_modules/.pnpm/prisma@<ver>.../node_modules/prisma/build/index.js generate --schema=packages/shared/prisma/schema.prisma`
+- **Adding dependencies**: `CI=true pnpm install --no-frozen-lockfile`
+
+## ChatType
+- Use enum values `ChatType.PRIVATE` / `ChatType.GROUP` in tests, not string literals `'private'` / `'group'`
 
 ## Zustand Pattern
 - Never `|| []` in selectors — creates new array ref each render causing infinite loops

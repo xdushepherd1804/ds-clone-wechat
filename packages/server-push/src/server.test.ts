@@ -109,17 +109,8 @@ vi.mock('ioredis', () => ({
   }),
 }));
 
-vi.mock('@wechat-clone/shared', () => ({
+vi.mock('@wechat-clone/shared/config', () => ({
   loadConfig: vi.fn(() => mockConfig),
-  ErrorCode: {
-    SUCCESS: 0,
-    INVALID_PARAM: 1001,
-    RATE_LIMITED: 1002,
-    INTERNAL_ERROR: 1003,
-    NOT_FOUND: 1004,
-    FORBIDDEN: 1005,
-    UNAUTHORIZED: 2000,
-  },
 }));
 
 // Mock push service
@@ -253,7 +244,7 @@ describe('server-push HTTP server', () => {
   it('sets CORS headers', () => {
     const res = makeRes();
     capturedHandler!(makeReq('GET', '/'), res);
-    expect(res._headers['Access-Control-Allow-Origin']).toBe('*');
+    expect((res._headers as Record<string, string>)['Access-Control-Allow-Origin']).toBe('*');
   });
 
   it('returns 404 for unknown routes', () => {

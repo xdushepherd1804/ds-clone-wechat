@@ -7,7 +7,7 @@ const mockConfig = {
 let capturedHandler: ((req: any, res: any) => void) | null = null;
 let capturedPort: number | null = null;
 
-vi.mock('@wechat-clone/shared', () => ({
+vi.mock('@wechat-clone/shared/config', () => ({
   loadConfig: vi.fn(() => mockConfig),
 }));
 
@@ -70,7 +70,7 @@ describe('server-contact HTTP server', () => {
 
   it('returns default response', () => {
     const res = makeRes();
-    capturedHandler!(makeReq('GET', '/'), res);
+    capturedHandler!(makeReq('GET', '/health'), res);
     const body = JSON.parse(res._body);
     expect(body.service).toBe('contact');
   });

@@ -7,19 +7,8 @@ const mockConfig = {
 let capturedHandler: ((req: any, res: any) => void) | null = null;
 let capturedPort: number | null = null;
 
-vi.mock('@wechat-clone/shared', () => ({
+vi.mock('@wechat-clone/shared/config', () => ({
   loadConfig: vi.fn(() => mockConfig),
-  ErrorCode: {
-    INVALID_PARAM: 1001,
-    UNAUTHORIZED: 2000,
-    FORBIDDEN: 2003,
-    NOT_FOUND: 1004,
-    FILE_NOT_FOUND: 7003,
-    FILE_TOO_LARGE: 7000,
-    FILE_TYPE_NOT_ALLOWED: 7001,
-    FILE_UPLOAD_FAILED: 7002,
-    INTERNAL_ERROR: 1003,
-  },
 }));
 
 vi.mock('node:http', async (importOriginal) => {

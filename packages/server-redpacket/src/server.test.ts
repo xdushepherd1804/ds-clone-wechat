@@ -9,20 +9,8 @@ const mockConfig = {
 let capturedHandler: ((req: any, res: any) => void) | null = null;
 let capturedPort: number | null = null;
 
-vi.mock('@wechat-clone/shared', () => ({
+vi.mock('@wechat-clone/shared/config', () => ({
   loadConfig: vi.fn(() => mockConfig),
-  ErrorCode: {
-    SUCCESS: 0,
-    INVALID_PARAM: 1001,
-    NOT_FOUND: 1004,
-    UNAUTHORIZED: 2000,
-    INTERNAL_ERROR: 1003,
-    RED_PACKET_NOT_FOUND: 8000,
-    RED_PACKET_EXPIRED: 8001,
-    RED_PACKET_FINISHED: 8002,
-    RED_PACKET_ALREADY_OPENED: 8003,
-    RED_PACKET_INSUFFICIENT_BALANCE: 8004,
-  },
 }));
 
 const mockService = {

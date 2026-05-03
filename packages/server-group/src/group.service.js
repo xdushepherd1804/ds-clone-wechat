@@ -43,6 +43,7 @@ function mapToGroupMember(member) {
         userId: member.userId,
         role: member.role,
         nicknameInGroup: member.nicknameInGroup,
+        mutedUntil: member.mutedUntil ?? null,
         joinedAt: member.joinedAt instanceof Date ? member.joinedAt.toISOString() : member.joinedAt,
     };
 }
