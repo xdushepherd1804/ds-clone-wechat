@@ -20,5 +20,5 @@ database:
     uri: ${MONGODB_URI}
 
 jwt:
-  access_expire: 5m
+  access_expire: 30m
   refresh_expire: 1d

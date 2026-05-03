@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Input,
@@ -187,6 +187,10 @@ export function ContactsPage() {
       setGroupsLoaded(true);
     }
   }, [groupsLoaded]);
+
+  useEffect(() => {
+    loadGroups();
+  }, [loadGroups]);
 
   const filteredContacts = useMemo(() => {
     if (!searchText.trim()) return contacts;
@@ -448,10 +452,7 @@ export function ContactsPage() {
             </div>
 
             <div
-              onClick={() => {
-                loadGroups();
-                if (groups.length > 0) navigate('/chat');
-              }}
+              onClick={() => navigate('/chat')}
               style={{
                 padding: '14px 16px',
                 cursor: 'pointer',
@@ -463,9 +464,13 @@ export function ContactsPage() {
                 style={{ marginRight: 10, fontSize: 18, color: '#07c160' }}
               />
               <span style={{ flex: 1 }}>群聊</span>
-              {groups.length > 0 && (
+              {groups.length > 0 ? (
                 <Text type="secondary" style={{ fontSize: 12 }}>
                   {groups.length}个群聊
+                </Text>
+              ) : (
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  暂无群聊
                 </Text>
               )}
             </div>

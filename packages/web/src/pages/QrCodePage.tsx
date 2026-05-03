@@ -4,23 +4,47 @@ import { QrcodeOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
 import { useNavigate } from 'react-router-dom';
 import { getUserCardQrCode } from '@/api/qrcode';
 import { useUserStore } from '@/store';
+import { getMe } from '@/api/auth';
+import { getToken } from '@/utils/token';
 
 export default function QrCodePage() {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const user = useUserStore((s) => s.user);
+  const [userId, setUserId] = useState<string | null>(user?.id ?? null);
 
   useEffect(() => {
-    if (!user?.id) {
-      setLoading(false);
+    if (user?.id) {
+      setUserId(user.id);
+    }
+  }, [user?.id]);
+
+  useEffect(() => {
+    if (userId) {
+      setLoading(true);
+      getUserCardQrCode(userId, 'json')
+        .then(({ dataUrl }) => setQrDataUrl(dataUrl))
+        .catch(() => message.error('获取二维码失败'))
+        .finally(() => setLoading(false));
       return;
     }
-    getUserCardQrCode(user.id, 'json')
-      .then(({ dataUrl }) => setQrDataUrl(dataUrl))
-      .catch(() => message.error('获取二维码失败'))
-      .finally(() => setLoading(false));
-  }, [user?.id]);
+
+    const token = getToken();
+    if (token) {
+      setLoading(true);
+      getMe()
+        .then((u) => {
+          setUserId(u.id);
+        })
+        .catch(() => {
+          setLoading(false);
+        });
+      return;
+    }
+
+    setLoading(false);
+  }, [userId]);
 
   return (
     <div style={{ maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>

@@ -1,4 +1,4 @@
-import { RedisKeys } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 export function createRedisSessionStore(redis) {
     return {
         async create(session, ttlSeconds) {

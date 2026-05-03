@@ -1,11 +1,13 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { List, Typography, Input, Spin, Badge, Empty, Alert, Avatar } from 'antd';
-import { MessageOutlined, UserOutlined, TeamOutlined } from '@ant-design/icons';
+import { List, Typography, Input, Spin, Badge, Empty, Alert, Avatar, Button, Modal } from 'antd';
+import { MessageOutlined, UserOutlined, TeamOutlined, PlusOutlined } from '@ant-design/icons';
 import { getConversations, getContacts, getGroups } from '@/api';
+import { createGroup } from '@/api/group';
 import { useContactStore } from '@/store';
 import type { Conversation, ContactItem, GroupInfo } from '@/types';
 import { ChatType } from '@/types';
+import { getMsgPreview } from '@/utils/parseMessageContent';
 
 const { Title } = Typography;
 
@@ -50,9 +52,27 @@ export function ChatPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [creating, setCreating] = useState(false);
   const storeContacts = useContactStore((s) => s.contacts);
 
   const nameMap = useNameMap(contacts, groups);
+
+  const handleCreateGroup = async () => {
+    if (!groupName.trim()) return;
+    setCreating(true);
+    try {
+      const group = await createGroup({ name: groupName.trim(), memberIds: [] });
+      setShowCreateGroup(false);
+      setGroupName('');
+      navigate(`/chat/group/${group.id}`);
+    } catch {
+      // silently fail
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -117,7 +137,17 @@ export function ChatPage() {
 
   return (
     <div style={{ maxWidth: 800, margin: '0 auto', padding: 16 }}>
-      <Title level={4}>Chats</Title>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={4} style={{ margin: 0 }}>Chats</Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setShowCreateGroup(true)}
+          style={{ background: '#07c160', borderColor: '#07c160' }}
+        >
+          创建群聊
+        </Button>
+      </div>
       <Input.Search
         placeholder="Search conversations..."
         style={{ marginBottom: 16 }}
@@ -141,6 +171,23 @@ export function ChatPage() {
           showIcon
         />
       )}
+
+      <Modal
+        title="创建群聊"
+        open={showCreateGroup}
+        onOk={handleCreateGroup}
+        onCancel={() => { setShowCreateGroup(false); setGroupName(''); }}
+        confirmLoading={creating}
+        okText="创建"
+        cancelText="取消"
+      >
+        <Input
+          placeholder="输入群聊名称"
+          value={groupName}
+          onChange={(e) => setGroupName(e.target.value)}
+          onPressEnter={handleCreateGroup}
+        />
+      </Modal>
 
       {!loading && !error && filteredConvs.length === 0 && filteredContacts.length === 0 && (
         <Empty description="No conversations yet. Add friends via Contacts to start chatting." />
@@ -167,7 +214,7 @@ export function ChatPage() {
                       </Badge>
                     }
                     title={name}
-                    description={item.lastMsg?.content ?? ''}
+                    description={item.lastMsg ? getMsgPreview(item.lastMsg) : ''}
                   />
                   <div style={{ color: '#999', fontSize: 12 }}>
                     {item.lastMsg?.createdAt

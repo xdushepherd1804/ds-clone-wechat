@@ -56,5 +56,5 @@ database:
 
 jwt:
   secret: ${JWT_SECRET}
-  access_expire: 15m
+  access_expire: 2h
   refresh_expire: 7d

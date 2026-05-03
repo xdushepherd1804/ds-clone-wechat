@@ -1,4 +1,5 @@
-import { ErrorCode, isValidMsgContent, generateId, RedisKeys } from '@wechat-clone/shared';
+import { ErrorCode, isValidMsgContent, generateId } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 export class MessageError extends Error {
     name = 'MessageError';
     code;

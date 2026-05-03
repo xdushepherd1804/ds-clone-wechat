@@ -72,5 +72,6 @@ export declare function createGroupService(deps: GroupServiceDeps): {
         error?: string;
     }>;
     isMuted: (groupId: string, userId: string) => Promise<boolean>;
+    listUserGroups: (userId: string) => Promise<GroupInfo[]>;
 };
 //# sourceMappingURL=group.service.d.ts.map

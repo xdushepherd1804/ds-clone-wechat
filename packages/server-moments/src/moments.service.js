@@ -1,4 +1,5 @@
-import { ErrorCode, CONFIG, RedisKeys } from '@wechat-clone/shared';
+import { ErrorCode, CONFIG } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 // ─── Redis key for timeline cache ────────────────────────────────────────────
 const PREFIX = 'wc';
 const timelineKey = (uid) => `${PREFIX}:moments:timeline:${uid}`;

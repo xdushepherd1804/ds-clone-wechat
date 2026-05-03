@@ -1,4 +1,5 @@
-import { ErrorCode, RedisKeys } from '@wechat-clone/shared';
+import { ErrorCode } from '@wechat-clone/shared';
+import { RedisKeys } from '@wechat-clone/shared/db/redis-keys';
 export class ContactError extends Error {
     name = 'ContactError';
     code;

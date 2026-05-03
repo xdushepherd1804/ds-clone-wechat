@@ -410,6 +410,15 @@ export function createGroupService(deps) {
             return false;
         return member.mutedUntil > new Date();
     }
+    // ─── List User Groups ──────────────────────────────────────────────────
+    async function listUserGroups(userId) {
+        const memberships = await prisma.groupMember.findMany({
+            where: { userId },
+            include: { group: true },
+            orderBy: { joinedAt: 'desc' },
+        });
+        return memberships.map((m) => mapToGroupInfo(m.group));
+    }
     return {
         createGroup,
         getGroup,
@@ -427,6 +436,7 @@ export function createGroupService(deps) {
         muteMember,
         validateMentions,
         isMuted,
+        listUserGroups,
     };
 }
 //# sourceMappingURL=group.service.js.map
