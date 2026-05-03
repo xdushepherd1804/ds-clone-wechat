@@ -11,7 +11,7 @@ import { createRedPacketService, RedPacketError } from './redpacket.service';
 const CONFIG_DIR = process.env.CONFIG_DIR || '/app/config';
 const config = loadConfig(CONFIG_DIR);
 const PORT = config.services.redpacket?.port ?? 3009;
-const HOST = config.services.redpacket?.host ?? '0.0.0.0';
+const HOST = '0.0.0.0';
 
 const prisma = new PrismaClient();
 
