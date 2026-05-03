@@ -7,9 +7,10 @@ const mockConfig = {
 let capturedHandler: ((req: any, res: any) => void) | null = null;
 let capturedPort: number | null = null;
 
-vi.mock('@wechat-clone/shared', () => ({
-  loadConfig: vi.fn(() => mockConfig),
-}));
+vi.mock('@wechat-clone/shared', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@wechat-clone/shared')>();
+  return { ...actual, loadConfig: vi.fn(() => mockConfig) };
+});
 
 vi.mock('node:http', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:http')>();

@@ -14,6 +14,8 @@ export default defineConfig({
     environment: 'node',
     env: {
       CONFIG_DIR: './config',
+      JWT_SECRET: 'test-jwt-secret-for-testing',
+      NODE_ENV: 'test',
     },
     include: ['packages/*/src/**/*.test.{ts,tsx}'],
     environmentMatchGlobs: [['packages/web/**', 'jsdom']],
