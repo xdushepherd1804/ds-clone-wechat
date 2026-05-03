@@ -88,7 +88,7 @@ importers:
   packages/server-contact:
     dependencies:
       '@prisma/client':
-        specifier: ^6.0.0
+        specifier: ^6.1.0
         version: 6.19.3(prisma@6.19.3(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
       '@wechat-clone/shared':
         specifier: workspace:*
@@ -156,7 +156,7 @@ importers:
   packages/server-moments:
     dependencies:
       '@prisma/client':
-        specifier: ^6.0.0
+        specifier: ^6.1.0
         version: 6.19.3(prisma@6.19.3(magicast@0.3.5)(typescript@5.9.3))(typescript@5.9.3)
       '@wechat-clone/shared':
         specifier: workspace:*

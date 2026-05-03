@@ -95,8 +95,6 @@ describe('request interceptor', () => {
 
 describe('response interceptor', () => {
   it('handles 401 by removing token and redirecting', async () => {
-    const { removeToken } = await import('@/utils/token');
-
     // Mock window.location
     const originalLocation = window.location;
     const locationMock = { href: '' };
@@ -107,6 +105,7 @@ describe('response interceptor', () => {
 
     vi.resetModules();
     await import('./client');
+    const { removeToken } = await import('@/utils/token');
 
     const errorInterceptorFn = mockResInterceptor.use.mock.calls[0]?.[1];
     expect(errorInterceptorFn).toBeDefined();
