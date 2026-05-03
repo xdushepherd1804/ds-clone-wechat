@@ -186,7 +186,7 @@ async function start() {
 
   // Push notification integration — notify push service when recipient is offline
   const pushHost = process.env.PUSH_HOST || 'localhost';
-  const pushPort = (config.services as Record<string, { port: number; host?: string }>).push?.port ?? 3007;
+  const pushPort = (config.services as unknown as Record<string, { port: number; host?: string }>).push?.port ?? 3007;
 
   function notifyPush(recipientId: string, senderNickname: string, content: string) {
     const body = JSON.stringify({

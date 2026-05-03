@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createMessageService, MessageError } from './message.service';
+import { ChatType } from '@wechat-clone/shared';
 
 // ─── Mock factories ─────────────────────────────────────────────────────────
 
@@ -191,21 +192,21 @@ describe('message.service', () => {
     it('throws if content is invalid', async () => {
       const svc = createMessageService({ prisma, mongo: null });
       await expect(svc.sendMessage({
-        fromUid: 'u1', toUid: 'u2', chatType: 'private', msgType: 1, content: '',
+        fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE, msgType: 1, content: '',
       })).rejects.toThrow(MessageError);
     });
 
     it('throws if private chat has no toUid', async () => {
       const svc = createMessageService({ prisma, mongo: null });
       await expect(svc.sendMessage({
-        fromUid: 'u1', chatType: 'private', msgType: 1, content: 'hello',
+        fromUid: 'u1', chatType: ChatType.PRIVATE, msgType: 1, content: 'hello',
       })).rejects.toThrow(MessageError);
     });
 
     it('throws if group chat has no toGroupId', async () => {
       const svc = createMessageService({ prisma, mongo: null });
       await expect(svc.sendMessage({
-        fromUid: 'u1', chatType: 'group', msgType: 1, content: 'hello',
+        fromUid: 'u1', chatType: ChatType.GROUP, msgType: 1, content: 'hello',
       })).rejects.toThrow(MessageError);
     });
 
@@ -222,7 +223,7 @@ describe('message.service', () => {
       it('sends a private message and returns it', async () => {
         const svc = createMessageService({ prisma, mongo });
         const msg = await svc.sendMessage({
-          fromUid: 'u1', toUid: 'u2', chatType: 'private', msgType: 1, content: 'Hello!',
+          fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE, msgType: 1, content: 'Hello!',
         });
 
         expect(msg.msgId).toBeTruthy();
@@ -238,7 +239,7 @@ describe('message.service', () => {
       it('stores message in messages collection', async () => {
         const svc = createMessageService({ prisma, mongo });
         await svc.sendMessage({
-          fromUid: 'u1', toUid: 'u2', chatType: 'private', msgType: 1, content: 'Hello!',
+          fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE, msgType: 1, content: 'Hello!',
         });
 
         expect(mongo._messages.length).toBe(1);
@@ -248,7 +249,7 @@ describe('message.service', () => {
       it('writes to message_boxes for both sender and receiver', async () => {
         const svc = createMessageService({ prisma, mongo });
         await svc.sendMessage({
-          fromUid: 'u1', toUid: 'u2', chatType: 'private', msgType: 1, content: 'Hello!',
+          fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE, msgType: 1, content: 'Hello!',
         });
 
         expect(mongo._boxCol.insertMany).toHaveBeenCalled();
@@ -266,7 +267,7 @@ describe('message.service', () => {
         ]);
         const svc = createMessageService({ prisma, mongo });
         await svc.sendMessage({
-          fromUid: 'u1', toGroupId: 'g1', chatType: 'group', msgType: 1, content: 'Hi group!',
+          fromUid: 'u1', toGroupId: 'g1', chatType: ChatType.GROUP, msgType: 1, content: 'Hi group!',
         });
 
         const inserted = mongo._boxCol.insertMany.mock.calls[0][0];
@@ -280,7 +281,7 @@ describe('message.service', () => {
       it('sends a group message', async () => {
         const svc = createMessageService({ prisma, mongo });
         const msg = await svc.sendMessage({
-          fromUid: 'u1', toGroupId: 'g1', chatType: 'group', msgType: 1, content: 'Hi group!',
+          fromUid: 'u1', toGroupId: 'g1', chatType: ChatType.GROUP, msgType: 1, content: 'Hi group!',
         });
 
         expect(msg.toGroupId).toBe('g1');
@@ -291,7 +292,7 @@ describe('message.service', () => {
         prisma.user.findUnique.mockResolvedValue(null);
         const svc = createMessageService({ prisma, mongo });
         await expect(svc.sendMessage({
-          fromUid: 'u1', toUid: 'u999', chatType: 'private', msgType: 1, content: 'x',
+          fromUid: 'u1', toUid: 'u999', chatType: ChatType.PRIVATE, msgType: 1, content: 'x',
         })).rejects.toThrow(MessageError);
       });
 
@@ -299,7 +300,7 @@ describe('message.service', () => {
         prisma.group.findUnique.mockResolvedValue(null);
         const svc = createMessageService({ prisma, mongo });
         await expect(svc.sendMessage({
-          fromUid: 'u1', toGroupId: 'g999', chatType: 'group', msgType: 1, content: 'x',
+          fromUid: 'u1', toGroupId: 'g999', chatType: ChatType.GROUP, msgType: 1, content: 'x',
         })).rejects.toThrow(MessageError);
       });
 
@@ -308,7 +309,7 @@ describe('message.service', () => {
         prisma.groupMember.findUnique.mockResolvedValue(null);
         const svc = createMessageService({ prisma, mongo });
         await expect(svc.sendMessage({
-          fromUid: 'u1', toGroupId: 'g1', chatType: 'group', msgType: 1, content: 'x',
+          fromUid: 'u1', toGroupId: 'g1', chatType: ChatType.GROUP, msgType: 1, content: 'x',
         })).rejects.toThrow(MessageError);
       });
 
@@ -316,7 +317,7 @@ describe('message.service', () => {
         redis.get.mockResolvedValue(null); // receiver is offline
         const svc = createMessageService({ prisma, mongo, redis });
         await svc.sendMessage({
-          fromUid: 'u1', toUid: 'u2', chatType: 'private', msgType: 1, content: 'Hello offline!',
+          fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE, msgType: 1, content: 'Hello offline!',
         });
 
         expect(redis.rpush).toHaveBeenCalled();
@@ -330,7 +331,7 @@ describe('message.service', () => {
         redis.get.mockResolvedValue('1'); // receiver is online
         const svc = createMessageService({ prisma, mongo, redis });
         await svc.sendMessage({
-          fromUid: 'u1', toUid: 'u2', chatType: 'private', msgType: 1, content: 'Hello online!',
+          fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE, msgType: 1, content: 'Hello online!',
         });
 
         // rpush should not be called with offline key for u2
@@ -344,7 +345,7 @@ describe('message.service', () => {
         redis.get.mockResolvedValue('1');
         const svc = createMessageService({ prisma, mongo, redis });
         await svc.sendMessage({
-          fromUid: 'u1', toUid: 'u2', chatType: 'private', msgType: 1, content: 'Hello!',
+          fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE, msgType: 1, content: 'Hello!',
         });
 
         expect(redis.zadd).toHaveBeenCalled();
@@ -367,7 +368,7 @@ describe('message.service', () => {
 
       // Seed data
       mongo._messages.push({
-        msgId: 'm1', fromUid: 'u1', toUid: 'u2', chatType: 'private',
+        msgId: 'm1', fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE,
         msgType: 1, content: 'Hello', status: 'sent', serverSeq: 1, createdAt: now,
       });
       mongo._boxes.push({
@@ -452,7 +453,7 @@ describe('message.service', () => {
       });
 
       mongo._messages.push({
-        msgId: 'm1', fromUid: 'u2', toUid: 'u1', chatType: 'private',
+        msgId: 'm1', fromUid: 'u2', toUid: 'u1', chatType: ChatType.PRIVATE,
         msgType: 1, content: 'Hello', status: 'sent', serverSeq: 1, createdAt: now,
       });
 
@@ -480,8 +481,8 @@ describe('message.service', () => {
       });
 
       mongo._messages.push(
-        { msgId: 'm1', fromUid: 'u2', toUid: 'u1', chatType: 'private', msgType: 1, content: 'Old', status: 'sent', serverSeq: 1, createdAt: t1 },
-        { msgId: 'm2', fromUid: 'u3', toUid: 'u1', chatType: 'private', msgType: 1, content: 'New', status: 'sent', serverSeq: 2, createdAt: t2 },
+        { msgId: 'm1', fromUid: 'u2', toUid: 'u1', chatType: ChatType.PRIVATE, msgType: 1, content: 'Old', status: 'sent', serverSeq: 1, createdAt: t1 },
+        { msgId: 'm2', fromUid: 'u3', toUid: 'u1', chatType: ChatType.PRIVATE, msgType: 1, content: 'New', status: 'sent', serverSeq: 2, createdAt: t2 },
       );
 
       mongo._msgCol.find.mockReturnValue({
@@ -497,7 +498,7 @@ describe('message.service', () => {
 
     it('uses Redis cache when available', async () => {
       const cached = [{
-        conversationId: 'conv:u1:u2', chatType: 'private', targetId: 'u2',
+        conversationId: 'conv:u1:u2', chatType: ChatType.PRIVATE, targetId: 'u2',
         lastMsg: null, unreadCount: 0, isTop: false, isMuted: false,
         updatedAt: new Date().toISOString(),
       }];
@@ -518,7 +519,7 @@ describe('message.service', () => {
       });
 
       mongo._messages.push({
-        msgId: 'm1', fromUid: 'u3', toUid: 'u1', chatType: 'private',
+        msgId: 'm1', fromUid: 'u3', toUid: 'u1', chatType: ChatType.PRIVATE,
         msgType: 1, content: 'Hi', status: 'sent', serverSeq: 1, createdAt: new Date(),
       });
 
@@ -679,8 +680,8 @@ describe('message.service', () => {
       prisma.user.findUnique.mockResolvedValue({ id: 'u2', username: 'bob' });
       const svc = createMessageService({ prisma, mongo });
 
-      await svc.sendMessage({ fromUid: 'u2', toUid: 'u1', chatType: 'private', msgType: 1, content: 'x' });
-      await svc.sendMessage({ fromUid: 'u1', toUid: 'u2', chatType: 'private', msgType: 1, content: 'y' });
+      await svc.sendMessage({ fromUid: 'u2', toUid: 'u1', chatType: ChatType.PRIVATE, msgType: 1, content: 'x' });
+      await svc.sendMessage({ fromUid: 'u1', toUid: 'u2', chatType: ChatType.PRIVATE, msgType: 1, content: 'y' });
 
       // Both messages should use the same conversation ID
       const boxes = mongo._boxCol.insertMany.mock.calls.flatMap((call: any) => call[0]);
@@ -696,7 +697,7 @@ describe('message.service', () => {
       prisma.groupMember.findMany.mockResolvedValue([{ userId: 'u1' }, { userId: 'u2' }]);
 
       const svc = createMessageService({ prisma, mongo });
-      await svc.sendMessage({ fromUid: 'u1', toGroupId: 'g1', chatType: 'group', msgType: 1, content: 'x' });
+      await svc.sendMessage({ fromUid: 'u1', toGroupId: 'g1', chatType: ChatType.GROUP, msgType: 1, content: 'x' });
 
       const boxes = mongo._boxCol.insertMany.mock.calls[0][0];
       expect(boxes[0].conversationId).toBe('conv:group:g1');

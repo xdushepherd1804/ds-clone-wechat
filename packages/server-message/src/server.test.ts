@@ -197,7 +197,7 @@ describe('server-message HTTP server', () => {
   it('sets CORS headers', () => {
     const res = makeRes();
     capturedHandler!(makeReq('GET', '/'), res);
-    expect(res._headers['Access-Control-Allow-Origin']).toBe('*');
+    expect((res._headers as Record<string, string>)['Access-Control-Allow-Origin']).toBe('*');
   });
 
   it('returns 404 for unknown routes', () => {
