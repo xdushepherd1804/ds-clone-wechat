@@ -191,6 +191,16 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  qrcode:
+    build:
+      context: .
+      target: qrcode
+    container_name: wc-qrcode
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+    restart: unless-stopped
+
   redpacket:
     build:
       context: .
@@ -225,6 +235,7 @@ services:
       FILE_HOST: file
       MOMENTS_HOST: moments
       SEARCH_HOST: search
+      QRCODE_HOST: qrcode
       REDPACKET_HOST: redpacket
     depends_on:
       - auth
@@ -233,6 +244,7 @@ services:
       - group
       - file
       - moments
+      - qrcode
       - search
       - redpacket
     restart: unless-stopped

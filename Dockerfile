@@ -27,6 +27,7 @@ COPY packages/server-moments/package.json packages/server-moments/tsconfig.json 
 COPY packages/server-gateway/package.json packages/server-gateway/tsconfig.json packages/server-gateway/
 COPY packages/server-search/package.json packages/server-search/tsconfig.json packages/server-search/
 COPY packages/server-redpacket/package.json packages/server-redpacket/tsconfig.json packages/server-redpacket/
+COPY packages/server-qrcode/package.json packages/server-qrcode/tsconfig.json packages/server-qrcode/
 COPY packages/web/package.json packages/web/tsconfig.json packages/web/
 
 # Install all dependencies (including devDeps for tsx and typescript)
@@ -44,6 +45,7 @@ COPY packages/server-moments/src packages/server-moments/src/
 COPY packages/server-gateway/src packages/server-gateway/src/
 COPY packages/server-search/src packages/server-search/src/
 COPY packages/server-redpacket/src packages/server-redpacket/src/
+COPY packages/server-qrcode/src packages/server-qrcode/src/
 COPY packages/web/src packages/web/src/
 COPY packages/web/index.html packages/web/vite.config.ts packages/web/
 COPY config/ config/
@@ -99,6 +101,12 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3006/health || exit 1
 EXPOSE 3006
 CMD ["node_modules/.bin/tsx", "packages/server-moments/src/server.ts"]
+
+# ─── QR Code Service ────────────────────────────────────────────────────────
+FROM base AS qrcode
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3   CMD wget -qO- http://127.0.0.1:3010/health || exit 1
+EXPOSE 3010
+CMD ["node_modules/.bin/tsx", "packages/server-qrcode/src/server.ts"]
 
 # ─── Red Packet Service ──────────────────────────────────────────────────────
 FROM base AS redpacket
