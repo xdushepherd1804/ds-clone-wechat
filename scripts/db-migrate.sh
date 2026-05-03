@@ -23,7 +23,7 @@ if [[ -f "$COMPOSE_ENV" ]]; then
   export $(grep -v '^#' "$COMPOSE_ENV" | grep -v '^$' | xargs)
 fi
 
-DATABASE_URL="${DATABASE_URL:-postgresql://wechat:wechat_dev@localhost:5432/wechat?schema=public}"
+DATABASE_URL="${DATABASE_URL:-postgresql://wechat:wechat_dev@postgres:5432/wechat?schema=public}"
 
 echo "=============================================="
 echo "  WeChat Clone — Database Migration"
