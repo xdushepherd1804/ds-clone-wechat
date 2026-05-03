@@ -118,8 +118,8 @@ describe('RedisKeys', () => {
 describe('RedisKeyPatterns', () => {
   const patterns = Object.entries(RedisKeyPatterns);
 
-  it('has all 9 key pattern categories', () => {
-    expect(Object.keys(RedisKeyPatterns)).toHaveLength(9);
+  it('has all 10 key pattern categories', () => {
+    expect(Object.keys(RedisKeyPatterns)).toHaveLength(10);
   });
 
   it.each([
@@ -130,6 +130,7 @@ describe('RedisKeyPatterns', () => {
     ['userProfile', `${PREFIX}:user:profile:*`],
     ['recentContacts', `${PREFIX}:user:recent:*`],
     ['offlineMessages', `${PREFIX}:user:offline:*`],
+    ['redPacket', `${PREFIX}:rp:*`],
     ['rateLimit', `${PREFIX}:rate:*`],
     ['lock', `${PREFIX}:lock:*`],
   ])('%s pattern is correct', (name, expected) => {
