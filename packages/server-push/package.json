@@ -12,6 +12,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@wechat-clone/shared": "workspace:*",
+    "firebase-admin": "^13.0.0",
     "ioredis": "^5.4.0"
   },
   "devDependencies": {

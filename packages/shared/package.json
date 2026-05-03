@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./config": "./src/config/index.ts",
+    "./db/redis-keys": "./src/db/redis-keys.ts",
     "./*": "./src/*"
   },
   "scripts": {

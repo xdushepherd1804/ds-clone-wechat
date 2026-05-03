@@ -10,7 +10,9 @@
     "lint": "eslint src/"
   },
   "dependencies": {
-    "@wechat-clone/shared": "workspace:*"
+    "@prisma/client": "^6.0.0",
+    "@wechat-clone/shared": "workspace:*",
+    "ioredis": "^5.4.0"
   },
   "devDependencies": {
     "typescript": "^5.7.2"
