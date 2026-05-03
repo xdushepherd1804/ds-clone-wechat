@@ -7,19 +7,8 @@ const mockConfig = {
 let capturedHandler: ((req: any, res: any) => void) | null = null;
 let capturedPort: number | null = null;
 
-vi.mock('@wechat-clone/shared', () => ({
+vi.mock('@wechat-clone/shared/config', () => ({
   loadConfig: vi.fn(() => mockConfig),
-  ErrorCode: {
-    SUCCESS: 0,
-    INVALID_PARAM: 1001,
-    NOT_FOUND: 1004,
-    UNAUTHORIZED: 2000,
-    INTERNAL_ERROR: 1003,
-    GROUP_NOT_FOUND: 5000,
-    GROUP_PERMISSION_DENIED: 5001,
-    GROUP_MEMBER_NOT_FOUND: 5003,
-    GROUP_MEMBER_ALREADY_EXISTS: 5002,
-  },
 }));
 
 const mockService = {

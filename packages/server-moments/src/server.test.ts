@@ -7,10 +7,9 @@ const mockConfig = {
 let capturedHandler: ((req: any, res: any) => void) | null = null;
 let capturedPort: number | null = null;
 
-vi.mock('@wechat-clone/shared', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@wechat-clone/shared')>();
-  return { ...actual, loadConfig: vi.fn(() => mockConfig) };
-});
+vi.mock('@wechat-clone/shared/config', () => ({
+  loadConfig: vi.fn(() => mockConfig),
+}));
 
 vi.mock('node:http', async (importOriginal) => {
   const actual = await importOriginal<typeof import('node:http')>();
@@ -71,7 +70,7 @@ describe('server-moments HTTP server', () => {
 
   it('returns default response', () => {
     const res = makeRes();
-    capturedHandler!(makeReq('GET', '/'), res);
+    capturedHandler!(makeReq('GET', '/health'), res);
     const body = JSON.parse(res._body);
     expect(body.service).toBe('moments');
   });

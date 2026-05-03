@@ -33,7 +33,7 @@ const services: Record<string, ServiceTarget> = {
   file: { host: process.env.FILE_HOST || 'file', port: config.services.file.port },
   moments: { host: process.env.MOMENTS_HOST || 'moments', port: config.services.moments.port },
   search: { host: process.env.SEARCH_HOST || 'search', port: config.services.search?.port ?? 3008 },
-  push: { host: process.env.PUSH_HOST || 'push', port: (config.services as Record<string, { port: number; host?: string }>).push?.port ?? 3007 },
+  push: { host: process.env.PUSH_HOST || 'push', port: (config.services as unknown as Record<string, { port: number; host?: string }>).push?.port ?? 3007 },
   redpacket: { host: process.env.REDPACKET_HOST || 'redpacket', port: config.services.redpacket?.port ?? 3009 },
   qrcode: { host: process.env.QRCODE_HOST || 'qrcode', port: config.services.qrcode?.port ?? 3010 },
 };

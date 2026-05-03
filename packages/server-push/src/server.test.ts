@@ -109,17 +109,8 @@ vi.mock('ioredis', () => ({
   }),
 }));
 
-vi.mock('@wechat-clone/shared', () => ({
+vi.mock('@wechat-clone/shared/config', () => ({
   loadConfig: vi.fn(() => mockConfig),
-  ErrorCode: {
-    SUCCESS: 0,
-    INVALID_PARAM: 1001,
-    RATE_LIMITED: 1002,
-    INTERNAL_ERROR: 1003,
-    NOT_FOUND: 1004,
-    FORBIDDEN: 1005,
-    UNAUTHORIZED: 2000,
-  },
 }));
 
 // Mock push service
