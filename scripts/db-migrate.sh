@@ -48,6 +48,7 @@ case "$MODE" in
     docker compose run --rm \
       -e DATABASE_URL="$DATABASE_URL" \
       -v "$(pwd)/scripts:/app/scripts" \
+      -v "$(pwd)/migrations:/app/migrations" \
       auth npx tsx scripts/migrate.ts "$MODE"
     ;;
   *)
