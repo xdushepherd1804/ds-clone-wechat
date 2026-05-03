@@ -49,7 +49,7 @@ case "$MODE" in
     echo "  → Running Prisma migration (dev)..."
     docker compose run --rm \
       -e DATABASE_URL="$DATABASE_URL" \
-      auth sh -c 'cd /app && pnpm exec prisma migrate dev --schema=packages/shared/prisma/schema.prisma'
+      auth sh -c 'cd /app/packages/shared && pnpm exec prisma migrate dev'
     echo "  ✓ Prisma migration (dev) complete"
     ;;
 esac
