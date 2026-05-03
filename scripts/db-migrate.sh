@@ -36,7 +36,7 @@ case "$MODE" in
     echo "  → Deploying Prisma migrations..."
     docker compose run --rm \
       -e DATABASE_URL="$DATABASE_URL" \
-      auth sh -c 'cd /app && npx prisma migrate deploy --schema=packages/shared/prisma/schema.prisma'
+      auth sh -c 'cd /app && pnpm exec prisma migrate deploy --schema=packages/shared/prisma/schema.prisma'
     echo "  ✓ Prisma migrations deployed"
     ;;
   --status|--up|--down)
@@ -49,7 +49,7 @@ case "$MODE" in
     echo "  → Running Prisma migration (dev)..."
     docker compose run --rm \
       -e DATABASE_URL="$DATABASE_URL" \
-      auth sh -c 'cd /app && npx prisma migrate dev --schema=packages/shared/prisma/schema.prisma'
+      auth sh -c 'cd /app && pnpm exec prisma migrate dev --schema=packages/shared/prisma/schema.prisma'
     echo "  ✓ Prisma migration (dev) complete"
     ;;
 esac
