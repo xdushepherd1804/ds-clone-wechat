@@ -103,16 +103,19 @@ install_docker() {
   systemctl start docker
 
   mkdir -p /etc/docker
-  if [ ! -f /etc/docker/daemon.json ]; then
-    cat > /etc/docker/daemon.json <<'EOF'
+  cat > /etc/docker/daemon.json <<'EOF'
 {
-  "registry-mirrors": ["https://mirror.ccs.tencentyun.com"],
+  "registry-mirrors": [
+    "https://docker.m.daocloud.io",
+    "https://dockerhub.timeweb.cloud",
+    "https://mirror.ccs.tencentyun.com",
+    "https://docker.1ms.run"
+  ],
   "log-driver": "json-file",
   "log-opts": { "max-size": "10m", "max-file": "3" }
 }
 EOF
-    systemctl restart docker
-  fi
+  systemctl restart docker
 
   log "Docker 安装完成: $(docker --version)"
 }
