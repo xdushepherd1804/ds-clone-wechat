@@ -66,7 +66,8 @@ export { CONFIG } from './constants/config';
 
 // ─── Utils ─────────────────────────────────────────────────────────────────
 
-export { generateId, generateShortId, extractTimestamp } from './utils/id-generator';
+// NOTE: id-generator and crypto are Node.js-only (node:crypto, process.env) —
+// not re-exported here to keep the barrel React Native / browser safe.
 export {
   formatTime,
   formatDate,
@@ -77,15 +78,6 @@ export {
   now,
   nowISO,
 } from './utils/time';
-export {
-  encrypt,
-  decrypt,
-  md5,
-  sha256,
-  randomToken,
-  hashPassword,
-  verifyPassword,
-} from './utils/crypto';
 export {
   isValidUsername,
   isValidPassword,
@@ -98,16 +90,4 @@ export {
   sanitizeText,
 } from './utils/validator';
 
-// ─── Re-export Prisma types ────────────────────────────────────────────────
-
-export type {
-  User,
-  Contact,
-  Group,
-  GroupMember,
-  Moment as PrismaMoment,
-  MomentLike as PrismaMomentLike,
-  MomentComment as PrismaMomentComment,
-  RedPacket,
-  RedPacketRecord,
-} from '@prisma/client';
+// ─── Re-export Prisma types (not re-exported for mobile — @prisma/client is server-only) ───
