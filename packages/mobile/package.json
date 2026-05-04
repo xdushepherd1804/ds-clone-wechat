@@ -2,7 +2,7 @@
   "name": "@wechat-clone/mobile",
   "version": "0.1.0",
   "private": true,
-  "main": "node_modules/expo/AppEntry.js",
+  "main": "index.js",
   "scripts": {
     "start": "expo start --dev-client",
     "typecheck": "tsc --noEmit",
