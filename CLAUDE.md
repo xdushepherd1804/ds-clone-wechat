@@ -22,6 +22,8 @@ WeChat clone — full-stack messaging platform monorepo (pnpm workspaces).
 - `packages/web` — React frontend (antd, react-router-dom)
 - `packages/server-*` — backend microservices (gateway, auth, message, contact, group, search, push, file, moments, qrcode, redpacket)
 - `packages/shared` — shared types, config, utilities
+- `packages/mobile` — Expo SDK 52 React Native app (Android + iOS)
+- `packages/mobile/shared-src` — RN-safe copy of shared code (EAS only uploads the app directory)
 - `config/` — shared server configuration
 - `docker/` — nginx config for SPA routing
 
@@ -66,7 +68,7 @@ Then call `ExitWorktree(action: "remove", discard_changes: true)`.
 - **Stop**: Path A (worktree + context) — commits, pushes, creates PR, cleans up worktree. Path B — auto-commit only.
 
 ## Stack
-TypeScript 5.7, React 19, pnpm 9, Vitest 3, ESLint flat config, Docker Compose dev environment
+TypeScript 5.7, React 19, React Native 0.76, Expo SDK 52, pnpm 9, Vitest 3, ESLint flat config, Docker Compose dev environment
 
 ## Import Rules (shared package)
 - DB modules (redis-keys, mongo-indexes) are NOT re-exported from the barrel to keep it browser-safe
@@ -105,3 +107,12 @@ TypeScript 5.7, React 19, pnpm 9, Vitest 3, ESLint flat config, Docker Compose d
 
 ## Known Issues
 - `docker-compose.yml`: message service needs `DATABASE_URL` env var for Prisma (PostgreSQL user lookups)
+
+## Mobile / EAS Build
+- `cd packages/mobile && eas build --platform android --profile preview --non-interactive`
+- EAS uploads only `packages/mobile` — external workspace deps need local copies (see `shared-src`)
+- **Entry point**: `index.js` NOT `node_modules/expo/AppEntry.js` — pnpm hoisting breaks `../../App` relative path
+- **shared-src barrel**: must exclude Node.js-only modules (`node:crypto`, `process.env`, `@prisma/client`)
+- **`@babel/runtime`** must be an explicit dependency for EAS builds
+- Metro resolves `@wechat-clone/shared` → `./shared-src` and `@` → `./src` via `metro.config.js`
+- Mobile `tsconfig.json` needs `baseUrl: "."` + `paths: {"@/*": ["./src/*"]}` for TypeScript
