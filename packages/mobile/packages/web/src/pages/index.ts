@@ -1,0 +1,13 @@
+export { LoginPage } from './LoginPage';
+export { RegisterPage } from './RegisterPage';
+export { ChatPage } from './ChatPage';
+export { ChatDetailPage } from './ChatDetailPage';
+export { ContactsPage } from './ContactsPage';
+export { ContactDetailPage } from './ContactDetailPage';
+export { MomentsPage } from './MomentsPage';
+export { MomentPublishPage } from './MomentPublishPage';
+export { ProfilePage } from './ProfilePage';
+export { default as MonitorPage } from './MonitorPage';
+export { GroupChatPage } from './GroupChatPage';
+export { GroupSettingsPage } from './GroupSettingsPage';
+export { default as QrCodePage } from './QrCodePage';

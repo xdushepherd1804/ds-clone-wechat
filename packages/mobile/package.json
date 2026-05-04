@@ -1,41 +1,54 @@
 {
-  "name": "@wechat-clone/mobile",
+  "name": "wechat-clone",
   "version": "0.1.0",
   "private": true,
-  "main": "node_modules/expo/AppEntry.js",
+  "description": "WeChat clone — monorepo for a full-stack messaging platform",
   "scripts": {
-    "start": "expo start --dev-client",
-    "typecheck": "tsc --noEmit",
-    "android": "expo run:android",
-    "ios": "expo run:ios"
-  },
-  "dependencies": {
-    "@react-native-async-storage/async-storage": "~2.1.0",
-    "@react-navigation/bottom-tabs": "^7.0.0",
-    "@react-navigation/native": "^7.0.0",
-    "@react-navigation/native-stack": "^7.0.0",
-    "@wechat-clone/shared": "workspace:*",
-    "axios": "^1.15.0",
-    "expo": "~52.0.0",
-    "expo-asset": "~11.0.0",
-    "expo-camera": "~16.0.0",
-    "expo-crypto": "~14.0.0",
-    "expo-dev-client": "~5.0.0",
-    "expo-document-picker": "~13.0.0",
-    "expo-file-system": "~18.0.0",
-    "expo-image-picker": "~16.0.0",
-    "expo-status-bar": "~2.0.0",
-    "react": "18.3.1",
-    "react-native": "0.76.7",
-    "react-native-gesture-handler": "~2.20.0",
-    "react-native-reanimated": "~3.16.0",
-    "react-native-safe-area-context": "~4.12.0",
-    "react-native-screens": "~4.2.0",
-    "zustand": "^5.0.0"
+    "lint": "eslint 'packages/*/src/**/*.{ts,tsx}'",
+    "lint:fix": "eslint --fix 'packages/*/src/**/*.{ts,tsx}'",
+    "format": "prettier --write 'packages/*/src/**/*.{ts,tsx,json,css}'",
+    "format:check": "prettier --check 'packages/*/src/**/*.{ts,tsx,json,css}'",
+    "dev": "pnpm --filter @wechat-clone/web dev",
+    "typecheck": "tsc --build",
+    "clean": "pnpm -r exec rm -rf dist node_modules",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:ui": "vitest --ui",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "@react-native/gradle-plugin": "^0.76.7",
-    "@types/react": "~18.3.0",
-    "typescript": "~5.3.0"
+    "@eslint/js": "^9.15.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/pg": "^8.11.0",
+    "@vitest/coverage-v8": "^3.2.0",
+    "@vitest/ui": "^3.2.0",
+    "eslint": "^9.15.0",
+    "tsx": "^4.19.2",
+    "eslint-config-prettier": "^9.1.0",
+    "globals": "^15.12.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.2.10",
+    "mongodb": "^6.12.0",
+    "pg": "^8.13.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.17.0",
+    "vitest": "^3.2.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
   }
 }

@@ -1,0 +1,37 @@
+{
+  "name": "@wechat-clone/shared",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared types, constants, utilities, and database schema for wechat-clone",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./config": "./src/config/index.ts",
+    "./db/redis-keys": "./src/db/redis-keys.ts",
+    "./*": "./src/*"
+  },
+  "scripts": {
+    "typecheck": "tsc --build",
+    "lint": "eslint src/",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:rollback": "prisma migrate reset",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "db:generate": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.1.0",
+    "yaml": "^2.8.3"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "prisma": "^6.1.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.2"
+  }
+}

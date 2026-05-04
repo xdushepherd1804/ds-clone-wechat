@@ -1,0 +1,6 @@
+{
+  "auto_create_pr": true,
+  "push_remote": "origin",
+  "base_branch": "main",
+  "commit_convention": "conventional"
+}

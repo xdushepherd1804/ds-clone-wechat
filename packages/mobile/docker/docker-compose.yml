@@ -1,0 +1,39 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: wc-postgres
+    environment:
+      POSTGRES_USER: wechat
+      POSTGRES_PASSWORD: wechat_dev
+      POSTGRES_DB: wechat
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: wc-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: wc-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: wechat
+      MONGO_INITDB_ROOT_PASSWORD: wechat_dev
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodata:/data/db
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:
+  mongodata:

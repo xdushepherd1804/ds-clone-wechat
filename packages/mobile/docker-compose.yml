@@ -1,0 +1,271 @@
+# =============================================================================
+# WeChat Clone — Docker Compose orchestration
+#
+# Quick start:
+#   docker compose up -d              # start all services
+#   docker compose down               # stop all services
+#   docker compose build              # rebuild images
+#   docker compose ps                 # check service status
+#
+# Services:
+#   postgres:16-alpine   — PostgreSQL database
+#   redis:7-alpine       — Redis cache / session store
+#   mongo:7              — MongoDB for messages
+#   auth                 — Authentication service (port 3001)
+#   message              — Messaging service (port 3002)
+#   contact              — Contacts service (port 3003)
+#   group                — Group chat service (port 3004)
+#   file                 — File upload service (port 3005)
+#   moments              — Moments/timeline service (port 3006)
+#   search               — Search service (port 3008)
+#   api-gateway          — API + WebSocket gateway (port 3000)
+#   web                  — React SPA + reverse proxy (nginx on port 8080)
+# =============================================================================
+
+services:
+  # ─── Infrastructure ──────────────────────────────────────────────────────
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: wc-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-wechat}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-wechat_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-wechat}
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'pg_isready', '-U', '${POSTGRES_USER:-wechat}', '-d', '${POSTGRES_DB:-wechat}']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    container_name: wc-redis
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  mongo:
+    image: mongo:7
+    container_name: wc-mongo
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-wechat}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-wechat_dev}
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodata:/data/db
+    restart: unless-stopped
+    healthcheck:
+      test: ['CMD', 'mongosh', '--eval', 'db.adminCommand("ping")']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  # ─── Application Services ────────────────────────────────────────────────
+
+  auth:
+    build:
+      context: .
+      target: auth
+    container_name: wc-auth
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  message:
+    build:
+      context: .
+      target: message
+    container_name: wc-message
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-wechat}:${MONGO_INITDB_ROOT_PASSWORD:-wechat_dev}@mongo:27017/wechat?authSource=admin
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  contact:
+    build:
+      context: .
+      target: contact
+    container_name: wc-contact
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  group:
+    build:
+      context: .
+      target: group
+    container_name: wc-group
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  file:
+    build:
+      context: .
+      target: file
+    container_name: wc-file
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+    restart: unless-stopped
+
+  moments:
+    build:
+      context: .
+      target: moments
+    container_name: wc-moments
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  search:
+    build:
+      context: .
+      target: search
+    container_name: wc-search
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      MONGODB_URL: mongodb://${MONGO_INITDB_ROOT_USERNAME:-wechat}:${MONGO_INITDB_ROOT_PASSWORD:-wechat_dev}@mongo:27017/wechat?authSource=admin
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  qrcode:
+    build:
+      context: .
+      target: qrcode
+    container_name: wc-qrcode
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+    restart: unless-stopped
+
+  redpacket:
+    build:
+      context: .
+      target: redpacket
+    container_name: wc-redpacket
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-wechat}:${POSTGRES_PASSWORD:-wechat_dev}@postgres:5432/${POSTGRES_DB:-wechat}?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api-gateway:
+    build:
+      context: .
+      target: gateway
+    container_name: wc-api-gateway
+    ports:
+      - '3000:3000'
+    environment:
+      NODE_ENV: ${NODE_ENV:-development}
+      JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
+      AUTH_HOST: auth
+      MESSAGE_HOST: message
+      CONTACT_HOST: contact
+      GROUP_HOST: group
+      FILE_HOST: file
+      MOMENTS_HOST: moments
+      SEARCH_HOST: search
+      QRCODE_HOST: qrcode
+      REDPACKET_HOST: redpacket
+    depends_on:
+      - auth
+      - message
+      - contact
+      - group
+      - file
+      - moments
+      - qrcode
+      - search
+      - redpacket
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      target: web
+    container_name: wc-web
+    ports:
+      - '8080:80'
+    depends_on:
+      - api-gateway
+    restart: unless-stopped
+
+# ─── Persistent Volumes ────────────────────────────────────────────────────
+
+volumes:
+  pgdata:
+    driver: local
+  redisdata:
+    driver: local
+  mongodata:
+    driver: local
