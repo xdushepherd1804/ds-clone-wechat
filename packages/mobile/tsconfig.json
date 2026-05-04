@@ -1,17 +1,14 @@
 {
-  "files": [],
-  "references": [
-    { "path": "packages/shared" },
-    { "path": "packages/server-auth" },
-    { "path": "packages/server-gateway" },
-    { "path": "packages/server-message" },
-    { "path": "packages/server-contact" },
-    { "path": "packages/server-group" },
-    { "path": "packages/server-file" },
-    { "path": "packages/server-moments" },
-    { "path": "packages/server-push" },
-    { "path": "packages/server-redpacket" },
-    { "path": "packages/server-qrcode" },
-    { "path": "packages/web" }
-  ]
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@wechat-clone/shared": ["./shared-src"]
+    },
+    "jsx": "react-jsx",
+    "moduleResolution": "bundler",
+    "noEmit": true
+  },
+  "include": ["src/**/*", "App.tsx", "shared-src/**/*"]
 }
