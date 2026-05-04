@@ -13,7 +13,8 @@ import { useContactStore } from '@/store/contactStore';
 import { colors, spacing, fonts, sizes } from '@/theme';
 import ContactItemComponent, { SectionHeader } from '@/components/contacts/ContactItem';
 import FriendRequestCard from '@/components/contacts/FriendRequestCard';
-import type { CompositeScreenProps, BottomTabScreenProps } from '@react-navigation/native';
+import type { CompositeScreenProps } from '@react-navigation/native';
+import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { MainTabParamList, ContactsStackParamList } from '@/navigation/types';
 
@@ -93,21 +94,14 @@ export default function ContactsScreen({ navigation }: Props) {
         sections={sections}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <ContactItemComponent
-            item={item}
-            onPress={() => handleContactPress(item)}
-          />
+          <ContactItemComponent item={item} onPress={() => handleContactPress(item)} />
         )}
         renderSectionHeader={({ section: { title } }) =>
           title === '☆' ? null : <SectionHeader letter={title} />
         }
         ListHeaderComponent={renderFriendRequests}
         refreshControl={
-          <RefreshControl
-            refreshing={loading}
-            onRefresh={onRefresh}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={loading} onRefresh={onRefresh} tintColor={colors.primary} />
         }
         ListEmptyComponent={
           loading ? null : (
