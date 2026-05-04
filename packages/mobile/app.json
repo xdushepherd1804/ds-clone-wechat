@@ -23,12 +23,22 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#07C160"
       },
-      "package": "com.wechatclone.app"
+      "package": "com.wechatclone.app",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO"
+      ]
     },
     "plugins": [
       "expo-camera",
       "expo-image-picker",
       "expo-document-picker"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "89e05463-b2c1-4971-8bb9-7509901bd927"
+      }
+    },
+    "owner": "xdushepherd91"
   }
 }
